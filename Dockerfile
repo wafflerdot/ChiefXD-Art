@@ -10,6 +10,6 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app .
 FROM gcr.io/distroless/base-debian12
 ENV PORT=8080
 USER 65532:65532
-COPY --from=builder /bin/app /app
+COPY --from=builder /app /app
 EXPOSE 8080
 ENTRYPOINT ["/app"]
