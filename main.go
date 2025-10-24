@@ -32,8 +32,8 @@ func main() {
 
 		var chatCmd string = args[1]
 
-		if chatCmd == "hello" {
-			s.ChannelMessageSend(m.ChannelID, "world!")
+		if chatCmd == "ping" {
+			s.ChannelMessageSend(m.ChannelID, "Pong!")
 		}
 
 	})
