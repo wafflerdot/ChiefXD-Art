@@ -8,9 +8,14 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
+)
+
+const (
+	FooterText = "Bot created by wafflerdot"
 )
 
 func main() {
@@ -134,7 +139,7 @@ func main() {
 				Color:       0x4CAF50,
 				Fields:      fields,
 				Footer: &discordgo.MessageEmbedFooter{
-					Text: "Bot created by wafflerdot",
+					Text: FooterText,
 				},
 			}
 
@@ -181,10 +186,88 @@ func main() {
 			Color:       0x00BFA5,
 			Fields:      fields,
 			Footer: &discordgo.MessageEmbedFooter{
-				Text: "Bot created by wafflerdot",
+				Text: FooterText,
 			},
 		}
 
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{embed},
+		})
+	})
+
+	// Command handler: /ping
+	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.Type != discordgo.InteractionApplicationCommand {
+			return
+		}
+		if i.ApplicationCommandData().Name != "ping" {
+			return
+		}
+
+		start := time.Now()
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			log.Println("failed to defer ping:", err)
+			return
+		}
+
+		rtt := time.Since(start)
+		gw := s.HeartbeatLatency()
+
+		embed := &discordgo.MessageEmbed{
+			Title: "Pong!",
+			Color: 0xFFC107,
+			Fields: []*discordgo.MessageEmbedField{
+				{Name: "Response time", Value: fmt.Sprintf("%d ms", rtt.Milliseconds()), Inline: true},
+				{Name: "Gateway latency", Value: fmt.Sprintf("%d ms", gw.Milliseconds()), Inline: true},
+			},
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText},
+		}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{embed},
+		})
+	})
+
+	// Command handler: /help
+	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.Type != discordgo.InteractionApplicationCommand {
+			return
+		}
+		if i.ApplicationCommandData().Name != "help" {
+			return
+		}
+
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			log.Println("failed to defer help:", err)
+			return
+		}
+
+		embed := &discordgo.MessageEmbed{
+			Title:       "Help",
+			Description: "Available commands",
+			Color:       0x5865F2,
+			Fields: []*discordgo.MessageEmbedField{
+				{
+					Name:   "/analyse",
+					Value:  "Analyses an image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content, AI usage, and bad text.",
+					Inline: false,
+				},
+				{
+					Name:   "/ping",
+					Value:  "Displays the bot's response time.",
+					Inline: false,
+				},
+				{
+					Name:   "/help",
+					Value:  "Shows this message.",
+					Inline: false,
+				},
+			},
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText},
+		}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 			Embeds: &[]*discordgo.MessageEmbed{embed},
 		})
@@ -222,6 +305,34 @@ func main() {
 	}
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmd.ID); err != nil {
+			log.Println("failed to delete command:", err)
+		}
+	}()
+
+	// Register /ping
+	cmdPing, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "ping",
+		Description: "Pong!",
+	})
+	if err != nil {
+		log.Fatalf("cannot create command ping: %v", err)
+	}
+	defer func() {
+		if err := sess.ApplicationCommandDelete(appID, guildID, cmdPing.ID); err != nil {
+			log.Println("failed to delete command:", err)
+		}
+	}()
+
+	// Register /help
+	cmdHelp, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "help",
+		Description: "Shows a list of commands",
+	})
+	if err != nil {
+		log.Fatalf("cannot create command help: %v", err)
+	}
+	defer func() {
+		if err := sess.ApplicationCommandDelete(appID, guildID, cmdHelp.ID); err != nil {
 			log.Println("failed to delete command:", err)
 		}
 	}()
