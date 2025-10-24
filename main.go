@@ -1,6 +1,10 @@
+// go
+// file: `main.go`
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,30 +23,46 @@ const (
 	FooterText = "Bot created by wafflerdot"
 )
 
-func main() {
-	_ = godotenv.Load()
+var httpSrv *http.Server
 
-	// Stupid HTTP stuff
-	http.HandleFunc("/", handler)
-
-	// Determine port for HTTP service
+func startHTTPServer() {
+	// Minimal HTTP server for Cloud Run health/readiness.
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
-		log.Printf("defaulting to port %s", port)
 	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	httpSrv = &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+	go func() {
+		log.Printf("HTTP server listening on :%s", port)
+		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+}
 
-	// Start HTTP server
-	log.Printf("listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
-	}
+func main() {
+	_ = godotenv.Load()
 
 	// Discord Bot
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
 		log.Fatal("BOT_TOKEN must be set in environment variables")
 	}
+
+	// Start Cloud Run HTTP server (health/readiness).
+	startHTTPServer()
 
 	sess, err := discordgo.New("Bot " + token)
 	if err != nil {
@@ -362,12 +382,11 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
-}
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	name := os.Getenv("NAME")
-	if name == "" {
-		name = "World"
+	// Graceful shutdown for HTTP server.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if httpSrv != nil {
+		_ = httpSrv.Shutdown(ctx)
 	}
-	fmt.Fprintf(w, "Hello %s!\n", name)
 }
