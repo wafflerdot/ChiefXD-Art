@@ -9,12 +9,17 @@ import (
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/joho/godotenv"
 )
 
 const prefix string = "!waffle"
 
 func main() {
-	sess, err := discordgo.New("Bot MTQzMTI5NzgyNzU1OTk2ODc3OA.Gzi5P-.X1AEjBNVUXo_dqDQ_508vG4umj6i3YqRwvDYRU")
+	godotenv.Load()
+
+	token := os.Getenv("BOT_TOKEN")
+	log.Println("Using token:", token)
+	sess, err := discordgo.New("Bot " + token)
 	if err != nil {
 		log.Fatal(err)
 	}
