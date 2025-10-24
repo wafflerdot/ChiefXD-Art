@@ -143,21 +143,6 @@ func main() {
 				return &discordgo.MessageEmbedField{Name: title, Value: val, Inline: false}
 			}
 
-			// Sorted text counts for deterministic output.
-			textCounts := "none"
-			if len(aa.TextCounts) > 0 {
-				keys := make([]string, 0, len(aa.TextCounts))
-				for k := range aa.TextCounts {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
-				var b strings.Builder
-				for _, k := range keys {
-					fmt.Fprintf(&b, "%s: %d\n", k, aa.TextCounts[k])
-				}
-				textCounts = strings.TrimRight(b.String(), "\n")
-			}
-
 			fields := make([]*discordgo.MessageEmbedField, 0, 6)
 			if nudity, ok := aa.Categories["nudity"]; ok {
 				fields = append(fields, formatScores("Nudity", nudity))
@@ -168,11 +153,6 @@ func main() {
 			if typ, ok := aa.Categories["type"]; ok {
 				fields = append(fields, formatScores("AI Usage", typ))
 			}
-			fields = append(fields, &discordgo.MessageEmbedField{
-				Name:   "Text Flags",
-				Value:  textCounts,
-				Inline: false,
-			})
 
 			embed := &discordgo.MessageEmbed{
 				Title:       "Image Analysis (Advanced)",
@@ -200,25 +180,9 @@ func main() {
 			return
 		}
 
-		// Sorted text counts for deterministic output.
-		textCounts := "none"
-		if len(a.TextCounts) > 0 {
-			keys := make([]string, 0, len(a.TextCounts))
-			for k := range a.TextCounts {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			var b strings.Builder
-			for _, k := range keys {
-				fmt.Fprintf(&b, "%s: %d\n", k, a.TextCounts[k])
-			}
-			textCounts = strings.TrimRight(b.String(), "\n")
-		}
-
 		fields := []*discordgo.MessageEmbedField{
 			{Name: "Safe Image", Value: fmt.Sprintf("%t", a.Allowed), Inline: true},
 			{Name: "Results", Value: fmt.Sprintf("Nudity: %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%", a.Scores.Nudity*100, a.Scores.Offensive*100, a.Scores.AIGenerated*100), Inline: false},
-			{Name: "Text Flags", Value: textCounts, Inline: false},
 		}
 
 		embed := &discordgo.MessageEmbed{
@@ -293,7 +257,7 @@ func main() {
 			Fields: []*discordgo.MessageEmbedField{
 				{
 					Name:   "/analyse",
-					Value:  "Analyses an image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content, AI usage, and bad text.",
+					Value:  "Analyses an image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content and AI usage",
 					Inline: false,
 				},
 				{

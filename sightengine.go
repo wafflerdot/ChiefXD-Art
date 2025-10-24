@@ -20,7 +20,7 @@ func sightengine(imageLink string) (map[string]any, error) {
 	base := "https://api.sightengine.com/1.0/check.json"
 	params := url.Values{}
 	params.Set("url", imageLink)
-	params.Set("models", "nudity-2.1,offensive-2.0,text-content,genai")
+	params.Set("models", "nudity-2.1,offensive-2.0,genai")
 	params.Set("api_user", apiUser)
 	params.Set("api_secret", apiSecret)
 

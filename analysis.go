@@ -30,14 +30,12 @@ type Analysis struct {
 		Offensive   float64
 		AIGenerated float64
 	}
-	TextCounts map[string]int
-	MediaURI   string
+	MediaURI string
 }
 
 // AdvancedAnalysis captures all numeric sub‑scores by category, plus text counts.
 type AdvancedAnalysis struct {
 	Categories map[string]map[string]float64 // e.g., "nudity" -> {"none":0.95, "suggestive":0.02, ...}
-	TextCounts map[string]int                // counts of items in text categories
 	MediaURI   string
 }
 
@@ -77,9 +75,7 @@ func AnalyseTempFile(path string) (*Analysis, error) {
 
 // AnalyseResult converts the raw map into an Analysis summary using fixed thresholds.
 func AnalyseResult(out map[string]any) *Analysis {
-	a := &Analysis{
-		TextCounts: make(map[string]int),
-	}
+	a := &Analysis{}
 
 	// Extract scores
 	// Nudity score
@@ -109,17 +105,6 @@ func AnalyseResult(out map[string]any) *Analysis {
 	typ := getMap(out, "type")
 	a.Scores.AIGenerated = getFloat(typ, "ai_generated")
 
-	// Text categories: count non-empty arrays
-	txt := getMap(out, "text")
-	for k, v := range txt {
-		switch vv := v.(type) {
-		case []any:
-			if len(vv) > 0 {
-				a.TextCounts[k] = len(vv)
-			}
-		}
-	}
-
 	// Media URI (optional)
 	if media := getMap(out, "media"); media != nil {
 		if uri, ok := media["uri"].(string); ok {
@@ -139,11 +124,6 @@ func AnalyseResult(out map[string]any) *Analysis {
 	if a.Scores.AIGenerated >= AIGeneratedThreshold {
 		a.Reasons = append(a.Reasons, "ai_generated_high")
 	}
-	for k, n := range a.TextCounts {
-		if n > 0 {
-			a.Reasons = append(a.Reasons, fmt.Sprintf("text_%s_%d", k, n))
-		}
-	}
 
 	// Allowed when no rule produced a reason.
 	a.Allowed = len(a.Reasons) == 0
@@ -154,22 +134,12 @@ func AnalyseResult(out map[string]any) *Analysis {
 func AnalyseResultAdvanced(out map[string]any) *AdvancedAnalysis {
 	aa := &AdvancedAnalysis{
 		Categories: make(map[string]map[string]float64),
-		TextCounts: make(map[string]int),
 	}
 
 	for _, k := range []string{"nudity", "offensive", "type"} {
 		if mm := getMap(out, k); mm != nil {
 			if subs := extractNumericSubscores(mm); len(subs) > 0 {
 				aa.Categories[k] = subs
-			}
-		}
-	}
-
-	// Text categories: count non-empty arrays
-	if txt := getMap(out, "text"); txt != nil {
-		for k, v := range txt {
-			if arr, ok := v.([]any); ok && len(arr) > 0 {
-				aa.TextCounts[k] = len(arr)
 			}
 		}
 	}
