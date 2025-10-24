@@ -1,7 +1,7 @@
 # Dockerfile
 # file: `Dockerfile`
 FROM golang:1.22 AS builder
-WORKDIR /src
+WORKDIR ./
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
@@ -12,4 +12,4 @@ ENV PORT=8080
 USER 65532:65532
 COPY --from=builder /bin/app /app
 EXPOSE 8080
-ENTRYPOINT ["/app"]
+ENTRYPOINT ["./"]
