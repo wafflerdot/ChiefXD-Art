@@ -1,14 +1,4 @@
 {
-  "name": "chiefxd-art",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/wafflerdot/ChiefXD-Art.git"
-  },
-  "private": true
+  "token": "MTQzMTI5NzgyNzU1OTk2ODc3OA.Gzi5P-.X1AEjBNVUXo_dqDQ_508vG4umj6i3YqRwvDYRU",
+  "BotPrefix": "."
 }

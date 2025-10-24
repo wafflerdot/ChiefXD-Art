@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	_ "fmt"
+
 	"github.com/alfredosa/GoDiscordBot/bot"
 )
 

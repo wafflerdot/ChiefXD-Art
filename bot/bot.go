@@ -12,7 +12,8 @@ var BotId string
 var goBot *discordgo.Session
 
 func Start() {
-	cfg, err := config.ReadConfig()
+	var err error
+	cfg := config.ReadConfig()
 	if err != nil {
 		fmt.Println("Failed to read configuration:", err)
 		return
@@ -61,7 +62,7 @@ func messageHandler(s *discordgo.Session, e *discordgo.MessageCreate) {
 				fmt.Println("Failed ping response:", err)
 			}
 		default:
-			_, err := s.ChannelMessageSend(e.ChannelID, fmt.Springf("Unknown command: %q.", cmd))
+			_, err := s.ChannelMessageSend(e.ChannelID, fmt.Sprintf("Unknown command: %q.", cmd))
 			if err != nil {
 				fmt.Println("Failed unknown command response:", err)
 			}
