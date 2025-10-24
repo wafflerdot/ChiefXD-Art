@@ -34,7 +34,14 @@ type Analysis struct {
 	MediaURI   string
 }
 
-// AnalyseImageURL runs the API request via sightengine(...) and analyses the result.
+// AdvancedAnalysis captures all numeric sub‑scores by category, plus text counts.
+type AdvancedAnalysis struct {
+	Categories map[string]map[string]float64 // e.g., "nudity" -> {"none":0.95, "suggestive":0.02, ...}
+	TextCounts map[string]int                // counts of items in text categories
+	MediaURI   string
+}
+
+// AnalyseImageURL runs the API request via sightengine and analyses the result.
 func AnalyseImageURL(imageURL string) (*Analysis, error) {
 	out, err := sightengine(imageURL)
 	if err != nil {
@@ -42,6 +49,15 @@ func AnalyseImageURL(imageURL string) (*Analysis, error) {
 	}
 	a := AnalyseResult(out)
 	return a, nil
+}
+
+// AnalyseImageURLAdvanced runs the API request via sightengine and returns full category/subcategory scores.
+func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
+	out, err := sightengine(imageURL)
+	if err != nil {
+		return nil, err
+	}
+	return AnalyseResultAdvanced(out), nil
 }
 
 // AnalyseTempFile loads a local JSON result (e.g., 'temp.json') and analyses it.
@@ -134,6 +150,40 @@ func AnalyseResult(out map[string]any) *Analysis {
 	return a
 }
 
+// AnalyseResultAdvanced extracts every numeric sub‑score from known categories and counts text arrays.
+func AnalyseResultAdvanced(out map[string]any) *AdvancedAnalysis {
+	aa := &AdvancedAnalysis{
+		Categories: make(map[string]map[string]float64),
+		TextCounts: make(map[string]int),
+	}
+
+	for _, k := range []string{"nudity", "offensive", "type"} {
+		if mm := getMap(out, k); mm != nil {
+			if subs := extractNumericSubscores(mm); len(subs) > 0 {
+				aa.Categories[k] = subs
+			}
+		}
+	}
+
+	// Text categories: count non-empty arrays
+	if txt := getMap(out, "text"); txt != nil {
+		for k, v := range txt {
+			if arr, ok := v.([]any); ok && len(arr) > 0 {
+				aa.TextCounts[k] = len(arr)
+			}
+		}
+	}
+
+	// Media URI (optional)
+	if media := getMap(out, "media"); media != nil {
+		if uri, ok := media["uri"].(string); ok {
+			aa.MediaURI = uri
+		}
+	}
+
+	return aa
+}
+
 // Helpers
 
 // getMap returns m\[key] as a map if present, otherwise nil.
@@ -171,13 +221,31 @@ func getFloat(m map[string]any, key string) float64 {
 	return 0
 }
 
-// Returns maximum of inputted values
-func maxFloat(vals ...float64) float64 {
-	max := 0.0
-	for _, v := range vals {
-		if v > max {
-			max = v
+// extractNumericSubscores returns all numeric leaf values from a category map.
+func extractNumericSubscores(m map[string]any) map[string]float64 {
+	out := make(map[string]float64)
+	for k, v := range m {
+		switch t := v.(type) {
+		case float64:
+			out[k] = t
+		case float32:
+			out[k] = float64(t)
+		case int:
+			out[k] = float64(t)
+		case int64:
+			out[k] = float64(t)
 		}
 	}
-	return max
+	return out
+}
+
+// Returns maximum of inputted values
+func maxFloat(vals ...float64) float64 {
+	maximum := 0.0
+	for _, v := range vals {
+		if v > maximum {
+			maximum = v
+		}
+	}
+	return maximum
 }

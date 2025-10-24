@@ -27,7 +27,7 @@ func main() {
 	}
 	defer sess.Close()
 
-	// Command handler: /analyse <image_url>
+	// Command handler: /analyse <image_url> [advanced]
 	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// Only respond to application command interactions.
 		if i.Type != discordgo.InteractionApplicationCommand {
@@ -37,12 +37,17 @@ func main() {
 			return
 		}
 
-		// Extract the `image_url` option.
-		var imageURL string
+		// Extract options
+		var (
+			imageURL string
+			advanced bool
+		)
 		for _, opt := range i.ApplicationCommandData().Options {
-			if opt.Name == "image_url" {
+			switch opt.Name {
+			case "image_url":
 				imageURL = opt.StringValue()
-				break
+			case "advanced":
+				advanced = opt.BoolValue()
 			}
 		}
 		if imageURL == "" {
@@ -63,7 +68,83 @@ func main() {
 			return
 		}
 
-		// Run analysis.
+		// If advanced is requested, use the advanced analysis and embed.
+		if advanced {
+			aa, err := AnalyseImageURLAdvanced(imageURL)
+			if err != nil {
+				msg := fmt.Sprintf("Analysis failed: %v", err)
+				_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+					Content: &msg,
+				})
+				return
+			}
+
+			// Helper to format a category map into a multiline percentage list sorted by score desc.
+			formatScores := func(title string, m map[string]float64) *discordgo.MessageEmbedField {
+				if len(m) == 0 {
+					return &discordgo.MessageEmbedField{Name: title, Value: "none", Inline: false}
+				}
+				keys := make([]string, 0, len(m))
+				for k := range m {
+					keys = append(keys, k)
+				}
+				sort.Slice(keys, func(i, j int) bool { return m[keys[i]] > m[keys[j]] })
+				var b strings.Builder
+				for _, k := range keys {
+					fmt.Fprintf(&b, "%s: %.0f%%\n", k, m[k]*100)
+				}
+				val := strings.TrimRight(b.String(), "\n")
+				return &discordgo.MessageEmbedField{Name: title, Value: val, Inline: false}
+			}
+
+			// Sorted text counts for deterministic output.
+			textCounts := "none"
+			if len(aa.TextCounts) > 0 {
+				keys := make([]string, 0, len(aa.TextCounts))
+				for k := range aa.TextCounts {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				var b strings.Builder
+				for _, k := range keys {
+					fmt.Fprintf(&b, "%s: %d\n", k, aa.TextCounts[k])
+				}
+				textCounts = strings.TrimRight(b.String(), "\n")
+			}
+
+			fields := make([]*discordgo.MessageEmbedField, 0, 6)
+			if nudity, ok := aa.Categories["nudity"]; ok {
+				fields = append(fields, formatScores("Nudity", nudity))
+			}
+			if offensive, ok := aa.Categories["offensive"]; ok {
+				fields = append(fields, formatScores("Offensive Content", offensive))
+			}
+			if typ, ok := aa.Categories["type"]; ok {
+				fields = append(fields, formatScores("AI Usage", typ))
+			}
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:   "Text Flags",
+				Value:  textCounts,
+				Inline: false,
+			})
+
+			embed := &discordgo.MessageEmbed{
+				Title:       "Image Analysis (Advanced)",
+				Description: fmt.Sprintf("Analysis results for: %s", imageURL),
+				Color:       0x4CAF50,
+				Fields:      fields,
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: "Bot created by wafflerdot",
+				},
+			}
+
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+				Embeds: &[]*discordgo.MessageEmbed{embed},
+			})
+			return
+		}
+
+		// Standard analysis (unchanged output).
 		a, err := AnalyseImageURL(imageURL)
 		if err != nil {
 			msg := fmt.Sprintf("Analysis failed: %v", err)
@@ -72,12 +153,6 @@ func main() {
 			})
 			return
 		}
-
-		// Build human‑readable fields.
-		//reasons := "none"
-		//if len(a.Reasons) > 0 {
-		//	reasons = strings.Join(a.Reasons, ", ")
-		//}
 
 		// Sorted text counts for deterministic output.
 		textCounts := "none"
@@ -96,17 +171,9 @@ func main() {
 
 		fields := []*discordgo.MessageEmbedField{
 			{Name: "Safe Image", Value: fmt.Sprintf("%t", a.Allowed), Inline: true},
-			//{Name: "Reasons", Value: reasons, Inline: false},
 			{Name: "Results", Value: fmt.Sprintf("Nudity: %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%", a.Scores.Nudity*100, a.Scores.Offensive*100, a.Scores.AIGenerated*100), Inline: false},
 			{Name: "Text Flags", Value: textCounts, Inline: false},
 		}
-		//if a.MediaURI != "" {
-		//	fields = append(fields, &discordgo.MessageEmbedField{
-		//		Name:   "Media URI",
-		//		Value:  a.MediaURI,
-		//		Inline: false,
-		//	})
-		//}
 
 		embed := &discordgo.MessageEmbed{
 			Title:       "Image Analysis",
@@ -134,13 +201,19 @@ func main() {
 	guildID := os.Getenv("GUILD_ID")
 	cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "analyse",
-		Description: "Analyse an image URL. Checks for nudity, offensive content, TOS text, and AI usage.",
+		Description: "Analyses an image URL for inappropriate content",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "image_url",
 				Description: "The image URL to analyse",
 				Required:    true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "advanced",
+				Description: "Advanced mode, shows more detailed results",
+				Required:    false,
 			},
 		},
 	})
