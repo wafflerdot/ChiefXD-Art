@@ -32,6 +32,9 @@ func main() {
 	}
 	defer sess.Close()
 
+	// Apply Rich Presence on READY.
+	sess.AddHandler(onReadySetPresence)
+
 	// Command handler: /analyse <image_url> [advanced]
 	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// Only respond to application command interactions.
