@@ -9,7 +9,7 @@ import (
 // Tunable thresholds for policy checks.
 // 1.00 = 100% certain flag; 0.00 = no flag.
 const (
-	NuditySuggestiveThreshold = 1.00
+	NuditySuggestiveThreshold = 0.50
 	NudityExplicitThreshold   = 0.50
 	OffensiveThreshold        = 0.50
 	AIGeneratedThreshold      = 0.50
@@ -19,16 +19,16 @@ const (
 // - Allowed: general verdict (true = no flags, false = flagged)
 // - Reasons: list of flagged reasons
 // - Scores: normalised scores
+// - TextCounts: counts of flags in each category
 // - MediaURI: optional URI of the analysed media
 type Analysis struct {
 	Allowed bool
 	Reasons []string
 
 	Scores struct {
-		SuggestiveNudity float64
-		ExplicitNudity   float64
-		Offensive        float64
-		AIGenerated      float64
+		Nudity      float64
+		Offensive   float64
+		AIGenerated float64
 	}
 	MediaURI string
 }
@@ -78,20 +78,16 @@ func AnalyseResult(out map[string]any) *Analysis {
 	a := &Analysis{}
 
 	// Extract scores
-	// SuggestiveNudity score
+	// Nudity score
 	nudity := getMap(out, "nudity")
 	// Prefer 1 - none as a single nudity score; fallback to max of other classes.
-	a.Scores.SuggestiveNudity = maxFloat(1.0-getFloat(nudity, "none"),
-		getFloat(nudity, "very_suggestive"),
-		getFloat(nudity, "suggestive"),
-		getFloat(nudity, "mildly_suggestive"),
-	)
-
-	// ExplicitNudity score
-	a.Scores.ExplicitNudity = maxFloat(1.0-getFloat(nudity, "none"),
+	a.Scores.Nudity = maxFloat(1.0-getFloat(nudity, "none"),
 		getFloat(nudity, "sexual_activity"),
 		getFloat(nudity, "sexual_display"),
 		getFloat(nudity, "erotica"),
+		getFloat(nudity, "very_suggestive"),
+		getFloat(nudity, "suggestive"),
+		getFloat(nudity, "mildly_suggestive"),
 	)
 
 	// Offensive symbols score
@@ -117,9 +113,9 @@ func AnalyseResult(out map[string]any) *Analysis {
 	}
 
 	// Build reasons from thresholds
-	if a.Scores.ExplicitNudity >= NudityExplicitThreshold {
+	if a.Scores.Nudity >= NudityExplicitThreshold {
 		a.Reasons = append(a.Reasons, "nudity_explicit")
-	} else if a.Scores.SuggestiveNudity >= NuditySuggestiveThreshold {
+	} else if a.Scores.Nudity >= NuditySuggestiveThreshold {
 		a.Reasons = append(a.Reasons, "nudity_suggestive")
 	}
 	if a.Scores.Offensive >= OffensiveThreshold {

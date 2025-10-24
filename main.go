@@ -144,11 +144,8 @@ func main() {
 			}
 
 			fields := make([]*discordgo.MessageEmbedField, 0, 6)
-			if nudity, ok := aa.Categories["suggestive_nudity"]; ok {
-				fields = append(fields, formatScores("SuggestiveNudity", nudity))
-			}
-			if nudity, ok := aa.Categories["explicit_nudity"]; ok {
-				fields = append(fields, formatScores("ExplicitNudity", nudity))
+			if nudity, ok := aa.Categories["nudity"]; ok {
+				fields = append(fields, formatScores("Nudity", nudity))
 			}
 			if offensive, ok := aa.Categories["offensive"]; ok {
 				fields = append(fields, formatScores("Offensive Content", offensive))
@@ -185,7 +182,7 @@ func main() {
 
 		fields := []*discordgo.MessageEmbedField{
 			{Name: "Safe Image", Value: fmt.Sprintf("%t", a.Allowed), Inline: true},
-			{Name: "Results", Value: fmt.Sprintf("Suggestive Nudity: %.0f%%\nExplicit Nudity: %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%", a.Scores.SuggestiveNudity*100, a.Scores.ExplicitNudity*100, a.Scores.Offensive*100, a.Scores.AIGenerated*100), Inline: false},
+			{Name: "Results", Value: fmt.Sprintf("Nudity: %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%", a.Scores.Nudity*100, a.Scores.Offensive*100, a.Scores.AIGenerated*100), Inline: false},
 		}
 
 		embed := &discordgo.MessageEmbed{
