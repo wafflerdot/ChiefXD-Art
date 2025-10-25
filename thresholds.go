@@ -504,23 +504,6 @@ func defaultThresholdValue(name string) float64 {
 	}
 }
 
-// currentGuildThresholdValue returns the effective guild value for a canonical threshold name
-func currentGuildThresholdValue(ps *PermStore, guildID, name string) float64 {
-	ns, ne, off, ai := thresholdsStore.GetGuildThresholds(ps, guildID)
-	switch name {
-	case "NuditySuggestive":
-		return ns
-	case "NudityExplicit":
-		return ne
-	case "Offensive":
-		return off
-	case "AIGenerated":
-		return ai
-	default:
-		return 0
-	}
-}
-
 // helper: dialect param placeholders
 func (ts *ThresholdsStore) param(ps *PermStore, idx int) string {
 	if ps.dialect == DialectPostgres {
