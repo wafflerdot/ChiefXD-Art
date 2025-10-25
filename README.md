@@ -91,7 +91,7 @@ The process starts an HTTP server for health checks and the Discord gateway sess
 
 The bot logs every created command and later lists the commands that Discord reports for the chosen scope.
 
-## Cloud Run notes
+## Cloud Run
 - The bot starts an HTTP server on `PORT` (default `8080`) and responds `ok` on `/` and `/healthz`.
 - Use the provided `Dockerfile` to containerise.
 - For persistent role whitelists across revisions, point `PERMS_FILE` to a writable, persistent path (for example, a mounted volume). Ephemeral container filesystems may not persist across deployments.
