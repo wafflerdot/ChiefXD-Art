@@ -25,9 +25,16 @@ func registerCommands(sess *discordgo.Session) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "analyse",
 		Description: "Analyses an Image URL for inappropriate content",
-		Options: []*discordgo.ApplicationCommandOption{
-			{Type: discordgo.ApplicationCommandOptionString, Name: "image_url", Description: "The Image URL to analyse", Required: true},
-			{Type: discordgo.ApplicationCommandOptionBoolean, Name: "advanced", Description: "Advanced mode, shows more detailed results", Required: false},
+		Options: []*discordgo.ApplicationCommandOption{{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "image_url",
+			Description: "The Image URL to analyse",
+			Required:    true},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        "advanced",
+				Description: "Advanced mode, shows more detailed results",
+				Required:    false},
 		},
 	}); err != nil {
 		log.Fatalf("cannot create command analyse: %v", err)
@@ -77,8 +84,11 @@ func registerCommands(sess *discordgo.Session) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "ai",
 		Description: "Checks an Image URL for AI usage",
-		Options: []*discordgo.ApplicationCommandOption{
-			{Type: discordgo.ApplicationCommandOptionString, Name: "image_url", Description: "The Image URL to check", Required: true},
+		Options: []*discordgo.ApplicationCommandOption{{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "image_url",
+			Description: "The Image URL to check",
+			Required:    true},
 		},
 	}); err != nil {
 		log.Fatalf("cannot create command ai: %v", err)
@@ -93,11 +103,28 @@ func registerCommands(sess *discordgo.Session) {
 		Name:        "permissions",
 		Description: "Manage roles allowed to use moderator-only commands",
 		Options: []*discordgo.ApplicationCommandOption{
-			{Type: discordgo.ApplicationCommandOptionSubCommand, Name: "add", Description: "Add a moderator role allowed to use moderator-only commands",
-				Options: []*discordgo.ApplicationCommandOption{{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "Role to add", Required: true}}},
-			{Type: discordgo.ApplicationCommandOptionSubCommand, Name: "remove", Description: "Remove a moderator role",
-				Options: []*discordgo.ApplicationCommandOption{{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "Role to remove", Required: true}}},
-			{Type: discordgo.ApplicationCommandOptionSubCommand, Name: "list", Description: "List moderator roles allowed to use restricted commands"},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "add",
+				Description: "Add a moderator role allowed to use moderator-only commands",
+				Options: []*discordgo.ApplicationCommandOption{{
+					Type:        discordgo.ApplicationCommandOptionRole,
+					Name:        "role",
+					Description: "Role to add",
+					Required:    true}}},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "remove",
+				Description: "Remove a moderator role",
+				Options: []*discordgo.ApplicationCommandOption{{
+					Type:        discordgo.ApplicationCommandOptionRole,
+					Name:        "role",
+					Description: "Role to remove",
+					Required:    true}}},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "list",
+				Description: "List moderator roles allowed to use restricted commands"},
 		},
 	}); err != nil {
 		log.Fatalf("cannot create command permissions: %v", err)
