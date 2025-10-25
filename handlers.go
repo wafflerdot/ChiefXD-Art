@@ -212,12 +212,12 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	embed := &discordgo.MessageEmbed{Title: "Help", Description: "Available commands", Color: 0x5865F2,
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "/analyse", Value: "Analyses an Image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content and AI usage", Inline: false},
-			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
-			{Name: "/help", Value: "Shows this message", Inline: false},
-			{Name: "/thresholds", Value: "Shows the current detection thresholds", Inline: false},
 			{Name: "/ai", Value: "Checks an Image URL for AI usage.\nArguments: `image_url` (required): The Image URL to check", Inline: false},
+			{Name: "/analyse", Value: "Analyses an Image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content and AI usage", Inline: false},
+			{Name: "/help", Value: "Shows this message", Inline: false},
 			{Name: "/permissions", Value: "Manage which roles can use moderator-only commands", Inline: false},
+			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
+			{Name: "/thresholds", Value: "Shows the current detection thresholds", Inline: false},
 		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
