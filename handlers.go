@@ -11,6 +11,17 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// respondEphemeral sends an ephemeral message visible only to the invoking user.
+func respondEphemeral(s *discordgo.Session, i *discordgo.InteractionCreate, content string) error {
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: content,
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+}
+
 // registerHandlers wires all slash command handlers onto the session.
 func registerHandlers(sess *discordgo.Session) {
 	// Apply Rich Presence on READY
@@ -45,30 +56,33 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// Only owner or admins can manage permissions
 	if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You don't have permission to manage the whitelist.",
-			},
-		})
-		return
-	}
-
-	// Defer to allow processing
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
-		log.Println("failed to defer permissions:", err)
+		_ = respondEphemeral(s, i, "You don't have permission to manage the whitelist.")
 		return
 	}
 
 	data := i.ApplicationCommandData()
 	if len(data.Options) == 0 {
-		msg := "Missing subcommand. Use add, remove or list."
-		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+		_ = respondEphemeral(s, i, "Missing subcommand. Use add, remove or list.")
 		return
 	}
 
 	sub := data.Options[0]
+	switch sub.Name {
+	case "add", "remove", "list":
+		// valid, proceed
+	default:
+		_ = respondEphemeral(s, i, "Unknown subcommand.")
+		return
+	}
+
+	// Defer to allow processing for valid subcommands
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	}); err != nil {
+		log.Println("failed to defer permissions:", err)
+		return
+	}
+
 	switch sub.Name {
 	case "add":
 		var roleID string
@@ -133,10 +147,6 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Value: val, Inline: false}},
 			Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
-
-	default:
-		msg := "Unknown subcommand."
-		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 	}
 }
 
@@ -148,9 +158,7 @@ func handleAnalyse(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 	if !perms.IsAllowedForRestricted(i) {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You don't have permission to use this command."}})
+		_ = respondEphemeral(s, i, "You don't have permission to use this command.")
 		return
 	}
 	analyseCommandHandlerBody(s, i)
@@ -164,9 +172,7 @@ func handleAI(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 	if !perms.IsAllowedForRestricted(i) {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You don't have permission to use this command."}})
+		_ = respondEphemeral(s, i, "You don't have permission to use this command.")
 		return
 	}
 	aiCommandHandlerBody(s, i)
@@ -237,8 +243,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if len(data.Options) == 0 || data.Options[0].Name == "list" {
 		// allowed: either HasAdminContextPermission or perms.IsAllowedForRestricted
 		if !(HasAdminContextPermission(i) || perms.IsAllowedForRestricted(i)) {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to view thresholds."}})
+			_ = respondEphemeral(s, i, "You don't have permission to view thresholds.")
 			return
 		}
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
@@ -255,8 +260,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// set/reset require owner/admin privileges
 	if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "Only server admins or the owner can modify thresholds."}})
+		_ = respondEphemeral(s, i, "Only server admins or the owner can modify thresholds.")
 		return
 	}
 
@@ -273,34 +277,28 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			}
 		}
 		if name == "" || valueStr == "" {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Usage: /thresholds set <Name> <Value>"}})
+			_ = respondEphemeral(s, i, "Usage: /thresholds set <Name> <Value>")
 			return
 		}
 
 		// Parse value: allow percent like 70% or 0.70
 		val, err := parseThresholdValue(valueStr)
 		if err != nil || val < 0 || val > 1 {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Value must be a decimal between 0.00 and 1.00, or a percentage like 70%"}})
+			_ = respondEphemeral(s, i, "Value must be a decimal between 0.00 and 1.00, or a percentage like 70%")
 			return
 		}
 		// Normalise name variants
 		canonical, ok := canonicalThresholdName(name)
 		if !ok {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
+			_ = respondEphemeral(s, i, "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated")
 			return
 		}
 		if err := thresholdsStore.Set(perms, canonical, val); err != nil {
 			log.Println("thresholds set error:", err)
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Failed to update threshold"}})
+			_ = respondEphemeral(s, i, "Failed to update threshold")
 			return
 		}
-		msg := fmt.Sprintf("Set %s to %.2f%%", canonical, val*100)
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: msg}})
+		_ = respondEphemeral(s, i, fmt.Sprintf("Set %s to %.2f%%", canonical, val*100))
 
 	case "reset":
 		var name string
@@ -310,36 +308,29 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			}
 		}
 		if name == "" {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Usage: /thresholds reset <Name|all>"}})
+			_ = respondEphemeral(s, i, "Usage: /thresholds reset <Threshold|all>")
 			return
 		}
 		if strings.EqualFold(name, "all") {
 			if err := thresholdsStore.ResetAll(perms); err != nil {
 				log.Println("thresholds reset all error:", err)
-				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{Content: "Failed to reset thresholds"}})
+				_ = respondEphemeral(s, i, "Failed to reset thresholds")
 				return
 			}
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Reset all thresholds to default"}})
+			_ = respondEphemeral(s, i, "Reset all thresholds to default")
 			return
 		}
 		canonical, ok := canonicalThresholdName(name)
 		if !ok {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
+			_ = respondEphemeral(s, i, "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated")
 			return
 		}
 		if err := thresholdsStore.ResetOne(perms, canonical); err != nil {
 			log.Println("thresholds reset one error:", err)
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Failed to reset threshold"}})
+			_ = respondEphemeral(s, i, "Failed to reset threshold")
 			return
 		}
-		msg := fmt.Sprintf("Reset %s to default", canonical)
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: msg}})
+		_ = respondEphemeral(s, i, fmt.Sprintf("Reset %s to default", canonical))
 	}
 }
 
@@ -361,8 +352,7 @@ func analyseCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCre
 		}
 	}
 	if imageURL == "" {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "Missing `image_url`."}})
+		_ = respondEphemeral(s, i, "Missing `image_url`.")
 		return
 	}
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
@@ -432,8 +422,7 @@ func aiCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		}
 	}
 	if imageURL == "" {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "Missing `image_url`."}})
+		_ = respondEphemeral(s, i, "Missing `image_url`.")
 		return
 	}
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
