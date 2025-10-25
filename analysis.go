@@ -26,9 +26,12 @@ type Analysis struct {
 	Reasons []string
 
 	Scores struct {
-		Nudity      float64
-		Offensive   float64
-		AIGenerated float64
+		// Explicit nudity score (e.g., sexual_activity, sexual_display, erotica)
+		NudityExplicit float64
+		// Suggestive but non-explicit nudity score (e.g., very_suggestive, suggestive, mildly_suggestive)
+		NuditySuggestive float64
+		Offensive        float64
+		AIGenerated      float64
 	}
 	MediaURI string
 }
@@ -78,13 +81,16 @@ func AnalyseResult(out map[string]any) *Analysis {
 	a := &Analysis{}
 
 	// Extract scores
-	// Nudity score
+	// Nudity scores are separated into explicit vs suggestive to match thresholds.
 	nudity := getMap(out, "nudity")
-	// Prefer 1 - none as a single nudity score; fallback to max of other classes.
-	a.Scores.Nudity = maxFloat(1.0-getFloat(nudity, "none"),
+	// Explicit
+	a.Scores.NudityExplicit = maxFloat(
 		getFloat(nudity, "sexual_activity"),
 		getFloat(nudity, "sexual_display"),
 		getFloat(nudity, "erotica"),
+	)
+	// Suggestive
+	a.Scores.NuditySuggestive = maxFloat(
 		getFloat(nudity, "very_suggestive"),
 		getFloat(nudity, "suggestive"),
 		getFloat(nudity, "mildly_suggestive"),
@@ -113,9 +119,9 @@ func AnalyseResult(out map[string]any) *Analysis {
 	}
 
 	// Build reasons from thresholds
-	if a.Scores.Nudity >= NudityExplicitThreshold {
+	if a.Scores.NudityExplicit >= NudityExplicitThreshold {
 		a.Reasons = append(a.Reasons, "nudity_explicit")
-	} else if a.Scores.Nudity >= NuditySuggestiveThreshold {
+	} else if a.Scores.NuditySuggestive >= NuditySuggestiveThreshold {
 		a.Reasons = append(a.Reasons, "nudity_suggestive")
 	}
 	if a.Scores.Offensive >= OffensiveThreshold {
@@ -156,7 +162,7 @@ func AnalyseResultAdvanced(out map[string]any) *AdvancedAnalysis {
 
 // Helpers
 
-// getMap returns m\[key] as a map if present, otherwise nil.
+// getMap returns m[key] as a map if present, otherwise nil.
 // Safe to call with nil m; never panics.
 func getMap(m map[string]any, key string) map[string]any {
 	if m == nil {
@@ -170,7 +176,7 @@ func getMap(m map[string]any, key string) map[string]any {
 	return nil
 }
 
-// getFloat extracts a numeric value from m\[key] across common JSON-decoded types.
+// getFloat extracts a numeric value from m[key] across common JSON-decoded types.
 // Returns 0 if the key is missing or not a number.
 func getFloat(m map[string]any, key string) float64 {
 	if m == nil {

@@ -182,7 +182,7 @@ func main() {
 
 		fields := []*discordgo.MessageEmbedField{
 			{Name: "Safe Image", Value: fmt.Sprintf("%t", a.Allowed), Inline: true},
-			{Name: "Results", Value: fmt.Sprintf("Nudity: %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%", a.Scores.Nudity*100, a.Scores.Offensive*100, a.Scores.AIGenerated*100), Inline: false},
+			{Name: "Results", Value: fmt.Sprintf("Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%", a.Scores.NudityExplicit*100, a.Scores.NuditySuggestive*100, a.Scores.Offensive*100, a.Scores.AIGenerated*100), Inline: false},
 		}
 
 		embed := &discordgo.MessageEmbed{
