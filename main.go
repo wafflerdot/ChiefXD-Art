@@ -68,7 +68,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer sess.Close()
+	defer func() {
+		if sess == nil {
+			return
+		}
+		if err := sess.Close(); err != nil {
+			log.Println("failed to close Discord session:", err)
+		}
+	}()
 
 	// Apply Rich Presence on READY.
 	sess.AddHandler(onReadySetPresence)
