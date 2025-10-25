@@ -219,12 +219,12 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	embed := &discordgo.MessageEmbed{Title: "Help", Description: "Available commands", Color: 0x5865F2,
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "/ai", Value: "Checks an Image URL for AI usage.\nArguments: `image_url` (required)", Inline: false},
-			{Name: "/analyse", Value: "Analyses an Image URL for inappropriate content.\nArguments:\n- `image_url` (required)\n- `advanced` (optional): `true` shows detailed category and subcategory scores", Inline: false},
+			{Name: "/ai", Value: "Checks an Image URL for AI usage\nArguments: `image_url` (required)", Inline: false},
+			{Name: "/analyse", Value: "Analyses an Image URL for inappropriate content\nArguments:\n- `image_url` (required)\n- `advanced` (optional): `true` shows detailed category and subcategory scores", Inline: false},
 			{Name: "/help", Value: "Shows this message", Inline: false},
 			{Name: "/permissions", Value: "Manage which roles can use moderator-only commands (owner/admin only)", Inline: false},
 			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
-			{Name: "/thresholds", Value: "Shows or modifies detection thresholds.\nSubcommands:\n- `list`: View current thresholds (allowed roles or admins)\n- `history [limit] [threshold]`: View recent changes. Optional `limit` (1–100) and `threshold` (one of: NuditySuggestive, NudityExplicit, Offensive, AIGenerated).\n- `set name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated> value:<0.00–1.00|percent>` (owner/admin only)\n- `reset name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated|all>` (owner/admin only)", Inline: false},
+			{Name: "/thresholds", Value: "Shows or modifies detection thresholds\nSubcommands:\n- `list`: View current thresholds\n- `history [limit] [threshold]`: View recent changes\n- `set <Threshold> <Value>`: Modify a detection threshold (owner/admin only)\n- `reset <Threshold|all>`: Resets a threshold to its default value (owner/admin only)", Inline: false},
 		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
@@ -253,7 +253,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		ns, ne, off, ai := thresholdsStore.GetGuildThresholds(perms, guildID)
 		val := fmt.Sprintf("Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%",
 			ne*100, ns*100, off*100, ai*100)
-		embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds for this server", Color: 0x9C27B0,
+		embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds to flag image", Color: 0x9C27B0,
 			Fields: []*discordgo.MessageEmbedField{{Name: "Thresholds", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
@@ -295,7 +295,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			return
 		}
 		if len(changes) == 0 {
-			_ = respondEphemeral(s, i, "No history available for this server.")
+			_ = respondEphemeral(s, i, "No history available.")
 			return
 		}
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
@@ -316,7 +316,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				c.Name, old, c.NewValue*100, user, c.Created.Format(time.RFC3339))
 			fields = append(fields, &discordgo.MessageEmbedField{Name: "Change", Value: val, Inline: false})
 		}
-		embed := &discordgo.MessageEmbed{Title: "Thresholds History (This Server)", Color: 0x8E44AD, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		embed := &discordgo.MessageEmbed{Title: "Thresholds History", Color: 0x8E44AD, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
 	}
@@ -364,7 +364,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			return
 		}
 		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], val, i.Member.User.ID, guildID)
-		msg := fmt.Sprintf("Set %s to %.2f%% (this server)", canonical, val*100)
+		msg := fmt.Sprintf("Set %s to %.2f%%", canonical, val*100)
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: msg}})
 
@@ -390,7 +390,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_ = thresholdsStore.LogChange(perms, "NudityExplicit", oldNE, DefaultNudityExplicitThreshold, i.Member.User.ID, guildID)
 			_ = thresholdsStore.LogChange(perms, "Offensive", oldOff, DefaultOffensiveThreshold, i.Member.User.ID, guildID)
 			_ = thresholdsStore.LogChange(perms, "AIGenerated", oldAI, DefaultAIGeneratedThreshold, i.Member.User.ID, guildID)
-			msg := "Reset all thresholds to default for this server"
+			msg := "Reset all thresholds to default"
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{Content: msg}})
 			return
@@ -409,7 +409,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 		// after reset, new value equals built-in default
 		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], defaultThresholdValue(canonical), i.Member.User.ID, guildID)
-		msg := fmt.Sprintf("Reset %s to default for this server", canonical)
+		msg := fmt.Sprintf("Reset %s to default", canonical)
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: msg}})
 	}
