@@ -298,7 +298,14 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_ = respondEphemeral(s, i, "Failed to update threshold")
 			return
 		}
-		_ = respondEphemeral(s, i, fmt.Sprintf("Set %s to %.2f%%", canonical, val*100))
+
+		msg := fmt.Sprintf("Set %s to %.2f%%", canonical, val*100)
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: msg},
+		}); err != nil {
+			log.Println("failed to send public confirmation:", err)
+		}
 
 	case "reset":
 		var name string
@@ -317,7 +324,14 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				_ = respondEphemeral(s, i, "Failed to reset thresholds")
 				return
 			}
-			_ = respondEphemeral(s, i, "Reset all thresholds to default")
+
+			msg := "Reset all thresholds to default"
+			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: msg},
+			}); err != nil {
+				log.Println("failed to send public reset-all confirmation:", err)
+			}
 			return
 		}
 		canonical, ok := canonicalThresholdName(name)
@@ -330,7 +344,14 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_ = respondEphemeral(s, i, "Failed to reset threshold")
 			return
 		}
-		_ = respondEphemeral(s, i, fmt.Sprintf("Reset %s to default", canonical))
+
+		msg := fmt.Sprintf("Reset %s to default", canonical)
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: msg},
+		}); err != nil {
+			log.Println("failed to send public reset confirmation:", err)
+		}
 	}
 }
 
