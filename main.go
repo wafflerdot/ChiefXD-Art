@@ -428,8 +428,9 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("cannot create command: %v", err)
+		log.Fatalf("cannot create command analyse: %v", err)
 	}
+	log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmd.ID); err != nil {
 			log.Println("failed to delete command:", err)
@@ -444,6 +445,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot create command ping: %v", err)
 	}
+	log.Printf("created command: %s (id=%s)", cmdPing.Name, cmdPing.ID)
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmdPing.ID); err != nil {
 			log.Println("failed to delete command:", err)
@@ -458,6 +460,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot create command help: %v", err)
 	}
+	log.Printf("created command: %s (id=%s)", cmdHelp.Name, cmdHelp.ID)
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmdHelp.ID); err != nil {
 			log.Println("failed to delete command:", err)
@@ -472,6 +475,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot create command thresholds: %v", err)
 	}
+	log.Printf("created command: %s (id=%s)", cmdThresholds.Name, cmdThresholds.ID)
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmdThresholds.ID); err != nil {
 			log.Println("failed to delete command:", err)
@@ -479,7 +483,7 @@ func main() {
 	}()
 
 	// Register /ai
-	cmdAI, err := sess.ApplicationCommandCreate(sess.State.User.ID, os.Getenv("GUILD_ID"), &discordgo.ApplicationCommand{
+	cmdAI, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "ai",
 		Description: "Checks an Image URL for AI usage",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -493,8 +497,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot create command ai: %v", err)
 	}
+	log.Printf("created command: %s (id=%s)", cmdAI.Name, cmdAI.ID)
 	defer func() {
-		if err := sess.ApplicationCommandDelete(sess.State.User.ID, os.Getenv("GUILD_ID"), cmdAI.ID); err != nil {
+		if err := sess.ApplicationCommandDelete(appID, guildID, cmdAI.ID); err != nil {
 			log.Println("failed to delete command ai:", err)
 		}
 	}()
