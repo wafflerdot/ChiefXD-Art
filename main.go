@@ -183,7 +183,7 @@ func main() {
 		}
 
 		// Restrict: require owner/admin or allowed role
-		if !perms.IsAllowedForRestricted(s, i) {
+		if !perms.IsAllowedForRestricted(i) {
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."},
@@ -334,7 +334,7 @@ func main() {
 		}
 
 		// Restrict: require owner/admin or allowed role
-		if !perms.IsAllowedForRestricted(s, i) {
+		if !perms.IsAllowedForRestricted(i) {
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."},
@@ -489,7 +489,7 @@ func main() {
 		}
 
 		// Restrict: require owner/admin or allowed role
-		if !perms.IsAllowedForRestricted(s, i) {
+		if !perms.IsAllowedForRestricted(i) {
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."},
