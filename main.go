@@ -74,7 +74,7 @@ func main() {
 	registerCommands(sess)
 
 	// ----------------------------------------
-	// Block until termination, then graceful shutdown
+	// Block until termination, then gracefully shutdown
 	// ----------------------------------------
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
