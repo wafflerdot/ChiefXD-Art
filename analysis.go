@@ -1,18 +1,12 @@
 package main
 
-import (
-	"encoding/json"
-	"fmt"
-	"os"
-)
-
 // Tunable thresholds for policy checks.
 // 1.00 = 100% certain flag; 0.00 = no flag.
 const (
-	NuditySuggestiveThreshold = 0.50
-	NudityExplicitThreshold   = 0.50
-	OffensiveThreshold        = 0.50
-	AIGeneratedThreshold      = 0.50
+	NuditySuggestiveThreshold = 0.95
+	NudityExplicitThreshold   = 0.25
+	OffensiveThreshold        = 0.25
+	AIGeneratedThreshold      = 0.60
 )
 
 // Analysis is a compact, comparable summary of the API result.
@@ -63,18 +57,18 @@ func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
 
 // AnalyseTempFile loads a local JSON result (e.g., 'temp.json') and analyses it.
 // DEV TESTING ONLY
-func AnalyseTempFile(path string) (*Analysis, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	var out map[string]any
-	if err := json.Unmarshal(b, &out); err != nil {
-		return nil, fmt.Errorf("decode json: %w", err)
-	}
-	a := AnalyseResult(out)
-	return a, nil
-}
+//func AnalyseTempFile(path string) (*Analysis, error) {
+//	b, err := os.ReadFile(path)
+//	if err != nil {
+//		return nil, fmt.Errorf("read %s: %w", path, err)
+//	}
+//	var out map[string]any
+//	if err := json.Unmarshal(b, &out); err != nil {
+//		return nil, fmt.Errorf("decode json: %w", err)
+//	}
+//	a := AnalyseResult(out)
+//	return a, nil
+//}
 
 // AnalyseResult converts the raw map into an Analysis summary using fixed thresholds.
 func AnalyseResult(out map[string]any) *Analysis {
