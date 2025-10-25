@@ -23,7 +23,7 @@ const (
 	FooterText = "Bot created by wafflerdot"
 )
 
-var httpSrv *http.Server
+var httpServer *http.Server
 
 func startHTTPServer() {
 	// Minimal HTTP server for Cloud Run health/readiness.
@@ -40,13 +40,13 @@ func startHTTPServer() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	httpSrv = &http.Server{
+	httpServer = &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
 	}
 	go func() {
 		log.Printf("HTTP server listening on :%s", port)
-		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}
 	}()
@@ -123,7 +123,7 @@ func main() {
 
 		// If advanced is requested, use the advanced analysis and embed.
 		if advanced {
-			aa, err := AnalyseImageURLAdvanced(imageURL)
+			advAnalysis, err := AnalyseImageURLAdvanced(imageURL)
 			if err != nil {
 				msg := fmt.Sprintf("Analysis failed: %v", err)
 				_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
@@ -142,24 +142,24 @@ func main() {
 					keys = append(keys, k)
 				}
 				sort.Slice(keys, func(i, j int) bool { return m[keys[i]] > m[keys[j]] })
-				var b strings.Builder
+				var builder strings.Builder
 				for _, k := range keys {
-					if _, err := fmt.Fprintf(&b, "%s: %.0f%%\n", k, m[k]*100); err != nil {
+					if _, err := fmt.Fprintf(&builder, "%s: %.0f%%\n", k, m[k]*100); err != nil {
 						log.Println("failed to write score to buffer:", err)
 					}
 				}
-				val := strings.TrimRight(b.String(), "\n")
+				val := strings.TrimRight(builder.String(), "\n")
 				return &discordgo.MessageEmbedField{Name: title, Value: val, Inline: false}
 			}
 
 			fields := make([]*discordgo.MessageEmbedField, 0, 6)
-			if nudity, ok := aa.Categories["nudity"]; ok {
+			if nudity, ok := advAnalysis.Categories["nudity"]; ok {
 				fields = append(fields, formatScores("Nudity", nudity))
 			}
-			if offensive, ok := aa.Categories["offensive"]; ok {
+			if offensive, ok := advAnalysis.Categories["offensive"]; ok {
 				fields = append(fields, formatScores("Offensive Content", offensive))
 			}
-			if typ, ok := aa.Categories["type"]; ok {
+			if typ, ok := advAnalysis.Categories["type"]; ok {
 				fields = append(fields, formatScores("AI Usage", typ))
 			}
 
@@ -180,7 +180,7 @@ func main() {
 		}
 
 		// Standard analysis
-		a, err := AnalyseImageURL(imageURL)
+		analysis, err := AnalyseImageURL(imageURL)
 		if err != nil {
 			msg := fmt.Sprintf("Analysis failed: %v", err)
 			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
@@ -192,17 +192,17 @@ func main() {
 		fields := []*discordgo.MessageEmbedField{
 			{
 				Name:   "Safe Image",
-				Value:  fmt.Sprintf("%t", a.Allowed),
+				Value:  fmt.Sprintf("%t", analysis.Allowed),
 				Inline: true,
 			},
 			{
 				Name: "Results",
 				Value: fmt.Sprintf(
 					"Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%",
-					a.Scores.NudityExplicit*100,
-					a.Scores.NuditySuggestive*100,
-					a.Scores.Offensive*100,
-					a.Scores.AIGenerated*100,
+					analysis.Scores.NudityExplicit*100,
+					analysis.Scores.NuditySuggestive*100,
+					analysis.Scores.Offensive*100,
+					analysis.Scores.AIGenerated*100,
 				),
 				Inline: false,
 			},
@@ -430,7 +430,7 @@ func main() {
 	// Graceful shutdown for HTTP server.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if httpSrv != nil {
-		_ = httpSrv.Shutdown(ctx)
+	if httpServer != nil {
+		_ = httpServer.Shutdown(ctx)
 	}
 }
