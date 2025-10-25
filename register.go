@@ -101,9 +101,15 @@ func registerCommands(sess *discordgo.Session) {
 				Description: "Show recent threshold changes",
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionInteger, Name: "limit", Description: "How many recent changes to show (1-100)", Required: false},
-					{Type: discordgo.ApplicationCommandOptionString, Name: "threshold", Description: "Filter using threshold name", Required: false},
-				},
-			},
+					{Type: discordgo.ApplicationCommandOptionString, Name: "threshold", Description: "Filter by threshold name", Required: false,
+						Choices: []*discordgo.ApplicationCommandOptionChoice{
+							{Name: "NuditySuggestive", Value: "NuditySuggestive"},
+							{Name: "NudityExplicit", Value: "NudityExplicit"},
+							{Name: "Offensive", Value: "Offensive"},
+							{Name: "AIGenerated", Value: "AIGenerated"},
+						},
+					},
+				}},
 		},
 	}); err != nil {
 		log.Fatalf("cannot create command thresholds: %v", err)
