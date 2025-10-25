@@ -47,7 +47,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "You don't have permission to manage roles.",
+				Content: "You don't have permission to manage the whitelist.",
 			},
 		})
 		return
@@ -86,7 +86,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		val := FormatRoleList(s, i.GuildID, list)
 		embed := &discordgo.MessageEmbed{
 			Title:       "Permissions Updated",
-			Description: "Added role",
+			Description: "Added role <@" + roleID + ">",
 			Color:       0x2ECC71,
 			Fields: []*discordgo.MessageEmbedField{{
 				Name:   "Allowed Roles",
@@ -112,7 +112,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		val := FormatRoleList(s, i.GuildID, list)
 		embed := &discordgo.MessageEmbed{
 			Title:       "Permissions Updated",
-			Description: "Removed role",
+			Description: "Removed role <@" + roleID + ">",
 			Color:       0xE74C3C,
 			Fields: []*discordgo.MessageEmbedField{{
 				Name:  "Allowed Roles",

@@ -157,32 +157,24 @@ func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool
 	return false
 }
 
-// FormatRoleList turns role IDs into a human-readable list using guild roles.
-func FormatRoleList(s *discordgo.Session, guildID string, roleIDs []string) string {
+// FormatRoleList turns role IDs into a human-readable list as Discord mentions.
+// Example: <@123>, <@456>
+func FormatRoleList(_ *discordgo.Session, _ string, roleIDs []string) string {
 	if len(roleIDs) == 0 {
 		return "(none configured)"
 	}
-
-	roles, err := s.GuildRoles(guildID)
-	if err != nil {
-		log.Println("GuildRoles error:", err)
-		return strings.Join(roleIDs, ", ")
-	}
-
-	nameByID := make(map[string]string, len(roles))
-	for _, r := range roles {
-		nameByID[r.ID] = r.Name
-	}
-
-	names := make([]string, 0, len(roleIDs))
+	mentions := make([]string, 0, len(roleIDs))
 	for _, id := range roleIDs {
-		if n, ok := nameByID[id]; ok {
-			names = append(names, n+" ("+id+")")
-		} else {
-			names = append(names, id)
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
 		}
+		mentions = append(mentions, "<@"+id+">")
 	}
-	return strings.Join(names, ", ")
+	if len(mentions) == 0 {
+		return "(none configured)"
+	}
+	return strings.Join(mentions, ", ")
 }
 
 // JSON persistence
