@@ -54,6 +54,15 @@ func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
 	return AnalyseResultAdvanced(out), nil
 }
 
+// AnalyseImageURLAIOnly runs the AI-only API request via sightengine and analyses the result
+func AnalyseImageURLAIOnly(imageURL string) (*Analysis, error) {
+	out, err := sightengineAIOnly(imageURL)
+	if err != nil {
+		return nil, err
+	}
+	return AnalyseResult(out), nil
+}
+
 // AnalyseTempFile loads a local JSON result (e.g., 'temp.json') and analyses it
 // DEV TESTING ONLY
 //func AnalyseTempFile(path string) (*Analysis, error) {

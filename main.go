@@ -221,6 +221,59 @@ func main() {
 		})
 	})
 
+	// Command handler: /ai <image_url>
+	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.Type != discordgo.InteractionApplicationCommand {
+			return
+		}
+		if i.ApplicationCommandData().Name != "ai" {
+			return
+		}
+
+		var imageURL string
+		for _, opt := range i.ApplicationCommandData().Options {
+			if opt.Name == "image_url" {
+				imageURL = opt.StringValue()
+			}
+		}
+		if imageURL == "" {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Missing `image_url`.",
+				},
+			})
+			return
+		}
+
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			log.Println("failed to defer ai interaction:", err)
+			return
+		}
+
+		analysis, err := AnalyseImageURLAIOnly(imageURL)
+		if err != nil {
+			msg := fmt.Sprintf("AI check failed: %v", err)
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+			return
+		}
+
+		fields := []*discordgo.MessageEmbedField{
+			{Name: "Safe Image", Value: fmt.Sprintf("%t", analysis.Allowed), Inline: true},
+			{Name: "AI Generated", Value: fmt.Sprintf("%.0f%%", analysis.Scores.AIGenerated*100), Inline: true},
+		}
+		embed := &discordgo.MessageEmbed{
+			Title:       "AI Usage Check",
+			Description: fmt.Sprintf("Analysis results for: %s", imageURL),
+			Color:       0x3F51B5,
+			Fields:      fields,
+			Footer:      &discordgo.MessageEmbedFooter{Text: FooterText},
+		}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+	})
+
 	// Command handler: /ping
 	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if i.Type != discordgo.InteractionApplicationCommand {
@@ -278,7 +331,7 @@ func main() {
 			Fields: []*discordgo.MessageEmbedField{
 				{
 					Name:   "/analyse",
-					Value:  "Analyses an image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content and AI usage",
+					Value:  "Analyses an Image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content and AI usage",
 					Inline: false,
 				},
 				{
@@ -294,6 +347,11 @@ func main() {
 				{
 					Name:   "/thresholds",
 					Value:  "Shows the current detection thresholds",
+					Inline: false,
+				},
+				{
+					Name:   "/ai",
+					Value:  "Checks an Image URL for AI usage.\nArguments: `image_url` (required): The Image URL to check",
 					Inline: false,
 				},
 			},
@@ -353,12 +411,12 @@ func main() {
 	guildID := os.Getenv("GUILD_ID")
 	cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "analyse",
-		Description: "Analyses an image URL for inappropriate content",
+		Description: "Analyses an Image URL for inappropriate content",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "image_url",
-				Description: "The image URL to analyse",
+				Description: "The Image URL to analyse",
 				Required:    true,
 			},
 			{
@@ -417,6 +475,26 @@ func main() {
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmdThresholds.ID); err != nil {
 			log.Println("failed to delete command:", err)
+		}
+	}()
+
+	// Register /ai
+	cmdAI, err := sess.ApplicationCommandCreate(sess.State.User.ID, os.Getenv("GUILD_ID"), &discordgo.ApplicationCommand{
+		Name:        "ai",
+		Description: "Checks an Image URL for AI usage",
+		Options: []*discordgo.ApplicationCommandOption{
+			{Type: discordgo.ApplicationCommandOptionString,
+				Name:        "image_url",
+				Description: "The Image URL to check",
+				Required:    true},
+		},
+	})
+	if err != nil {
+		log.Fatalf("cannot create command ai: %v", err)
+	}
+	defer func() {
+		if err := sess.ApplicationCommandDelete(sess.State.User.ID, os.Getenv("GUILD_ID"), cmdAI.ID); err != nil {
+			log.Println("failed to delete command ai:", err)
 		}
 	}()
 
