@@ -1,7 +1,7 @@
 package main
 
-// Tunable thresholds for policy checks.
-// 1.00 = 100% certain flag; 0.00 = no flag.
+// Tunable thresholds for policy checks
+// 1.00 = 100% certain flag; 0.00 = no flag
 const (
 	NuditySuggestiveThreshold = 0.70
 	NudityExplicitThreshold   = 0.25
@@ -9,7 +9,7 @@ const (
 	AIGeneratedThreshold      = 0.60
 )
 
-// Analysis is a compact, comparable summary of the API result.
+// Analysis is a summary of the API result
 // - Allowed: general verdict (true = no flags, false = flagged)
 // - Reasons: list of flagged reasons
 // - Scores: normalised scores
@@ -19,9 +19,9 @@ type Analysis struct {
 	Reasons []string
 
 	Scores struct {
-		// Explicit nudity score (e.g., sexual_activity, sexual_display, erotica)
+		// Explicit nudity score (sexual_activity, sexual_display, erotica)
 		NudityExplicit float64
-		// Suggestive but non-explicit nudity score (e.g., very_suggestive, suggestive, mildly_suggestive)
+		// Suggestive nudity score (very_suggestive, suggestive, mildly_suggestive)
 		NuditySuggestive float64
 		Offensive        float64
 		AIGenerated      float64
@@ -35,7 +35,7 @@ type AdvancedAnalysis struct {
 	MediaURI   string
 }
 
-// AnalyseImageURL runs the API request via sightengine and analyses the result.
+// AnalyseImageURL runs the API request via sightengine and analyses the result
 func AnalyseImageURL(imageURL string) (*Analysis, error) {
 	out, err := sightengine(imageURL)
 	if err != nil {
@@ -45,7 +45,7 @@ func AnalyseImageURL(imageURL string) (*Analysis, error) {
 	return a, nil
 }
 
-// AnalyseImageURLAdvanced runs the API request via sightengine and returns full category/subcategory scores.
+// AnalyseImageURLAdvanced runs the API request via sightengine and returns full category/subcategory scores
 func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
 	out, err := sightengine(imageURL)
 	if err != nil {
@@ -54,7 +54,7 @@ func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
 	return AnalyseResultAdvanced(out), nil
 }
 
-// AnalyseTempFile loads a local JSON result (e.g., 'temp.json') and analyses it.
+// AnalyseTempFile loads a local JSON result (e.g., 'temp.json') and analyses it
 // DEV TESTING ONLY
 //func AnalyseTempFile(path string) (*Analysis, error) {
 //	b, err := os.ReadFile(path)
@@ -69,12 +69,12 @@ func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
 //	return a, nil
 //}
 
-// AnalyseResult converts the raw map into an Analysis summary using fixed thresholds.
+// AnalyseResult converts the raw map into an Analysis summary using configured thresholds
 func AnalyseResult(out map[string]any) *Analysis {
 	a := &Analysis{}
 
 	// Extract scores
-	// Nudity scores are separated into explicit vs suggestive to match thresholds.
+	// Nudity scores separated into explicit and suggestive
 	nudity := getMap(out, "nudity")
 	// Explicit
 	a.Scores.NudityExplicit = maxFloat(
@@ -103,7 +103,7 @@ func AnalyseResult(out map[string]any) *Analysis {
 	typ := getMap(out, "type")
 	a.Scores.AIGenerated = getFloat(typ, "ai_generated")
 
-	// Media URI (optional)
+	// Media URI
 	if media := getMap(out, "media"); media != nil {
 		if uri, ok := media["uri"].(string); ok {
 			a.MediaURI = uri
@@ -124,12 +124,12 @@ func AnalyseResult(out map[string]any) *Analysis {
 		a.Reasons = append(a.Reasons, "ai_generated_high")
 	}
 
-	// Allowed when no rule produced a reason.
+	// Safe when no rule produced a reason
 	a.Allowed = len(a.Reasons) == 0
 	return a
 }
 
-// AnalyseResultAdvanced extracts every numeric sub‑score from known categories and counts text arrays.
+// AnalyseResultAdvanced extracts every numeric sub‑score from known categories and counts text arrays
 func AnalyseResultAdvanced(out map[string]any) *AdvancedAnalysis {
 	aa := &AdvancedAnalysis{
 		Categories: make(map[string]map[string]float64),
@@ -155,8 +155,7 @@ func AnalyseResultAdvanced(out map[string]any) *AdvancedAnalysis {
 
 // Helpers
 
-// getMap returns m[key] as a map if present, otherwise nil.
-// Safe to call with nil m; never panics.
+// getMap returns m[key] as a map if present, otherwise returns nil
 func getMap(m map[string]any, key string) map[string]any {
 	if m == nil {
 		return nil
@@ -169,8 +168,8 @@ func getMap(m map[string]any, key string) map[string]any {
 	return nil
 }
 
-// getFloat extracts a numeric value from m[key] across common JSON-decoded types.
-// Returns 0 if the key is missing or not a number.
+// getFloat extracts a numeric value from m[key] across common JSON-decoded types
+// Returns 0 if the key is missing or not a number
 func getFloat(m map[string]any, key string) float64 {
 	if m == nil {
 		return 0
@@ -190,7 +189,7 @@ func getFloat(m map[string]any, key string) float64 {
 	return 0
 }
 
-// extractNumericSubscores returns all numeric leaf values from a category map.
+// extractNumericSubscores returns all numeric leaf values from a category map
 func extractNumericSubscores(m map[string]any) map[string]float64 {
 	out := make(map[string]float64)
 	for k, v := range m {
@@ -219,7 +218,7 @@ func maxFloat(vals ...float64) float64 {
 	return maximum
 }
 
-// Returns mean (average) of inputted values. Returns 0 if no values provided.
+// Returns mean (average) of inputted values
 func meanFloat(vals ...float64) float64 {
 	if len(vals) == 0 {
 		return 0.0
