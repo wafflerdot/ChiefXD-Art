@@ -224,7 +224,7 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			{Name: "/help", Value: "Shows this message", Inline: false},
 			{Name: "/permissions", Value: "Manage which roles can use moderator-only commands (owner/admin only)", Inline: false},
 			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
-			{Name: "/thresholds", Value: "Shows or modifies detection thresholds.\nSubcommands:\n- `list`: View current thresholds\n- `set name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated> value:<0.00–1.00>` (owner/admin only)\n- `reset name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated|all>` (owner/admin only)", Inline: false},
+			{Name: "/thresholds", Value: "Shows or modifies detection thresholds.\nSubcommands:\n- `list`: View current thresholds (allowed roles or admins)\n- `history [limit] [threshold]`: View recent changes. Optional `limit` (1–100) and `threshold` (one of: NuditySuggestive, NudityExplicit, Offensive, AIGenerated).\n- `set name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated> value:<0.00–1.00|percent>` (owner/admin only)\n- `reset name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated|all>` (owner/admin only)", Inline: false},
 		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
@@ -264,12 +264,29 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			return
 		}
 		limit := 10
+		var nameFilter string
 		for _, opt := range data.Options[0].Options {
 			if opt.Name == "limit" {
 				limit = int(opt.IntValue())
 			}
+			if opt.Name == "threshold" {
+				nameFilter = strings.TrimSpace(opt.StringValue())
+			}
 		}
-		changes, err := thresholdsStore.History(perms, limit)
+		var (
+			changes []ThresholdChange
+			err     error
+		)
+		if nameFilter != "" {
+			canonical, ok := canonicalThresholdName(nameFilter)
+			if !ok {
+				_ = respondEphemeral(s, i, "Unknown threshold filter. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated")
+				return
+			}
+			changes, err = thresholdsStore.HistoryFiltered(perms, canonical, limit)
+		} else {
+			changes, err = thresholdsStore.History(perms, limit)
+		}
 		if err != nil {
 			log.Println("thresholds history error:", err)
 			_ = respondEphemeral(s, i, "Failed to fetch history")

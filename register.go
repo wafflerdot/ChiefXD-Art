@@ -67,7 +67,7 @@ func registerCommands(sess *discordgo.Session) {
 	}
 
 	// ----------------------------------------
-	// /thresholds (list | set | reset)
+	// /thresholds (list | set | reset | history)
 	// ----------------------------------------
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "thresholds",
@@ -101,6 +101,7 @@ func registerCommands(sess *discordgo.Session) {
 				Description: "Show recent threshold changes",
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionInteger, Name: "limit", Description: "How many recent changes to show (1-100)", Required: false},
+					{Type: discordgo.ApplicationCommandOptionString, Name: "threshold", Description: "Filter using threshold name", Required: false},
 				},
 			},
 		},

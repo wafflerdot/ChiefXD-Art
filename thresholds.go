@@ -224,6 +224,42 @@ func (ts *ThresholdsStore) History(ps *PermStore, limit int) ([]ThresholdChange,
 	return changes, nil
 }
 
+// HistoryFiltered returns last N changes for a specific threshold name.
+func (ts *ThresholdsStore) HistoryFiltered(ps *PermStore, name string, limit int) ([]ThresholdChange, error) {
+	changes := []ThresholdChange{}
+	if ps == nil || ps.db == nil {
+		return changes, nil
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	switch ps.dialect {
+	case DialectPostgres:
+		rows, err = ps.db.Query(`SELECT name, old_value, new_value, user_id, guild_id, created_at
+			FROM thresholds_history WHERE name = $1 ORDER BY created_at DESC LIMIT $2`, name, limit)
+	case DialectMySQL:
+		rows, err = ps.db.Query(`SELECT name, old_value, new_value, user_id, guild_id, created_at
+			FROM thresholds_history WHERE name = ? ORDER BY created_at DESC LIMIT ?`, name, limit)
+	}
+	if err != nil {
+		return changes, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c ThresholdChange
+		if err := rows.Scan(&c.Name, &c.OldValue, &c.NewValue, &c.UserID, &c.GuildID, &c.Created); err != nil {
+			log.Println("thresholds history scan:", err)
+			continue
+		}
+		changes = append(changes, c)
+	}
+	return changes, nil
+}
+
 // currentThresholdValue returns the active in-memory value by canonical name.
 func currentThresholdValue(name string) float64 {
 	switch name {
