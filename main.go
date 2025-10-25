@@ -406,9 +406,9 @@ func main() {
 	}
 	log.Println("Bot is now online!")
 
-	// Register the /analyse command (guild‑scoped if GUILD_ID is set, otherwise global)
+	// Register the /analyse command (global registration)
 	appID := sess.State.User.ID
-	guildID := os.Getenv("GUILD_ID")
+	guildID := "" // empty => global commands
 	cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "analyse",
 		Description: "Analyses an Image URL for inappropriate content",
@@ -501,6 +501,20 @@ func main() {
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmdAI.ID); err != nil {
 			log.Println("failed to delete command ai:", err)
+		}
+	}()
+
+	// Debug: list global application commands (helps verify what Discord has stored)
+	go func() {
+		// Small delay to give Discord a moment to process creations.
+		time.Sleep(2 * time.Second)
+		cmds, err := sess.ApplicationCommands(appID, "")
+		if err != nil {
+			log.Println("failed to list global application commands:", err)
+			return
+		}
+		for _, c := range cmds {
+			log.Printf("discord stored global command: name=%s id=%s", c.Name, c.ID)
 		}
 	}()
 
