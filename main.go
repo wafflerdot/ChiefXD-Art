@@ -144,7 +144,9 @@ func main() {
 				sort.Slice(keys, func(i, j int) bool { return m[keys[i]] > m[keys[j]] })
 				var b strings.Builder
 				for _, k := range keys {
-					fmt.Fprintf(&b, "%s: %.0f%%\n", k, m[k]*100)
+					if _, err := fmt.Fprintf(&b, "%s: %.0f%%\n", k, m[k]*100); err != nil {
+						log.Println("failed to write score to buffer:", err)
+					}
 				}
 				val := strings.TrimRight(b.String(), "\n")
 				return &discordgo.MessageEmbedField{Name: title, Value: val, Inline: false}
