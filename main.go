@@ -406,9 +406,18 @@ func main() {
 	}
 	log.Println("Bot is now online!")
 
-	// Register the /analyse command (global registration)
+	// Command registration scope toggle:
+	// If GUILD_ID is set (non-empty), register commands only for that guild (instant propagation).
+	// If GUILD_ID is empty, register commands globally (may take up to ~1 hour to propagate).
 	appID := sess.State.User.ID
-	guildID := "" // empty => global commands
+	guildID := os.Getenv("GUILD_ID")
+	if guildID == "" {
+		log.Println("Registering global application commands (GUILD_ID not set)")
+	} else {
+		log.Printf("Registering guild-scoped application commands to guild %s", guildID)
+	}
+
+	// Register the /analyse command
 	cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "analyse",
 		Description: "Analyses an Image URL for inappropriate content",
@@ -479,17 +488,22 @@ func main() {
 	}
 	log.Printf("created command: %s (id=%s)", cmdAI.Name, cmdAI.ID)
 
-	// Debug: list global application commands (helps verify what Discord has stored)
+	// Debug: list commands in the chosen scope to verify what Discord has stored
 	go func() {
 		// Small delay to give Discord a moment to process creations.
 		time.Sleep(2 * time.Second)
-		cmds, err := sess.ApplicationCommands(appID, "")
+		listScope := guildID
+		scopeLabel := "global"
+		if guildID != "" {
+			scopeLabel = "guild"
+		}
+		cmds, err := sess.ApplicationCommands(appID, listScope)
 		if err != nil {
-			log.Println("failed to list global application commands:", err)
+			log.Printf("failed to list %s application commands: %v", scopeLabel, err)
 			return
 		}
 		for _, c := range cmds {
-			log.Printf("discord stored global command: name=%s id=%s", c.Name, c.ID)
+			log.Printf("discord stored %s command: name=%s id=%s", scopeLabel, c.Name, c.ID)
 		}
 	}()
 
