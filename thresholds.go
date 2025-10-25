@@ -259,19 +259,3 @@ func (ts *ThresholdsStore) HistoryFiltered(ps *PermStore, name string, limit int
 	}
 	return changes, nil
 }
-
-// currentThresholdValue returns the active in-memory value by canonical name.
-func currentThresholdValue(name string) float64 {
-	switch name {
-	case "NuditySuggestive":
-		return NuditySuggestiveThreshold
-	case "NudityExplicit":
-		return NudityExplicitThreshold
-	case "Offensive":
-		return OffensiveThreshold
-	case "AIGenerated":
-		return AIGeneratedThreshold
-	default:
-		return 0
-	}
-}
