@@ -86,6 +86,17 @@ func AnalyseImageURLAIOnly(imageURL string) (*Analysis, error) {
 //	return a, nil
 //}
 
+// EffectiveThresholds returns nudity suggestive, nudity explicit, offensive, ai thresholds for a guild
+func EffectiveThresholds(guildID string) (ns, ne, off, ai float64) {
+	ns, ne, off, ai = DefaultNuditySuggestiveThreshold, DefaultNudityExplicitThreshold, DefaultOffensiveThreshold, DefaultAIGeneratedThreshold
+	if perms != nil {
+		gns, gne, goff, gai := thresholdsStore.GetGuildThresholds(perms, guildID)
+		// Use guild thresholds when DB available, otherwise stick to defaults
+		ns, ne, off, ai = gns, gne, goff, gai
+	}
+	return
+}
+
 // AnalyseResult converts the raw map into an Analysis summary using configured thresholds
 func AnalyseResult(out map[string]any) *Analysis {
 	a := &Analysis{}

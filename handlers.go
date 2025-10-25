@@ -238,6 +238,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	data := i.ApplicationCommandData()
+	guildID := i.GuildID
 
 	// If no subcommand or list => view only (allowed roles can view)
 	if len(data.Options) == 0 || data.Options[0].Name == "list" {
@@ -249,9 +250,10 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			log.Println("failed to defer thresholds:", err)
 			return
 		}
+		ns, ne, off, ai := thresholdsStore.GetGuildThresholds(perms, guildID)
 		val := fmt.Sprintf("Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%",
-			NudityExplicitThreshold*100, NuditySuggestiveThreshold*100, OffensiveThreshold*100, AIGeneratedThreshold*100)
-		embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds to flag image as inappropriate", Color: 0x9C27B0,
+			ne*100, ns*100, off*100, ai*100)
+		embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds for this server", Color: 0x9C27B0,
 			Fields: []*discordgo.MessageEmbedField{{Name: "Thresholds", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
@@ -283,9 +285,9 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				_ = respondEphemeral(s, i, "Unknown threshold filter. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated")
 				return
 			}
-			changes, err = thresholdsStore.HistoryFiltered(perms, canonical, limit)
+			changes, err = thresholdsStore.HistoryFilteredForGuild(perms, guildID, canonical, limit)
 		} else {
-			changes, err = thresholdsStore.History(perms, limit)
+			changes, err = thresholdsStore.HistoryForGuild(perms, guildID, limit)
 		}
 		if err != nil {
 			log.Println("thresholds history error:", err)
@@ -293,7 +295,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			return
 		}
 		if len(changes) == 0 {
-			_ = respondEphemeral(s, i, "No history available.")
+			_ = respondEphemeral(s, i, "No history available for this server.")
 			return
 		}
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
@@ -314,7 +316,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				c.Name, old, c.NewValue*100, user, c.Created.Format(time.RFC3339))
 			fields = append(fields, &discordgo.MessageEmbedField{Name: "Change", Value: val, Inline: false})
 		}
-		embed := &discordgo.MessageEmbed{Title: "Thresholds History", Color: 0x8E44AD, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		embed := &discordgo.MessageEmbed{Title: "Thresholds History (This Server)", Color: 0x8E44AD, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
 	}
@@ -329,11 +331,14 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	switch sub.Name {
 	case "set":
 		var name, valueStr string
+
+		// Parse value: allow percent like 70% or 0.70
 		for _, opt := range sub.Options {
 			if opt.Name == "name" {
 				name = strings.TrimSpace(opt.StringValue())
 			}
 			if opt.Name == "value" {
+				// Normalise name variants
 				valueStr = strings.TrimSpace(opt.StringValue())
 			}
 		}
@@ -341,32 +346,27 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_ = respondEphemeral(s, i, "Usage: /thresholds set <Name> <Value>")
 			return
 		}
-
-		// Parse value: allow percent like 70% or 0.70
 		val, err := parseThresholdValue(valueStr)
 		if err != nil || val < 0 || val > 1 {
 			_ = respondEphemeral(s, i, "Value must be a decimal between 0.00 and 1.00, or a percentage like 70%")
 			return
 		}
-		// Normalise name variants
 		canonical, ok := canonicalThresholdName(name)
 		if !ok {
 			_ = respondEphemeral(s, i, "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated")
 			return
 		}
-		if err := thresholdsStore.Set(perms, canonical, val); err != nil {
-			log.Println("thresholds set error:", err)
+		oldNS, oldNE, oldOff, oldAI := thresholdsStore.GetGuildThresholds(perms, guildID)
+		oldMap := map[string]float64{"NuditySuggestive": oldNS, "NudityExplicit": oldNE, "Offensive": oldOff, "AIGenerated": oldAI}
+		if err := thresholdsStore.SetGuild(perms, guildID, canonical, val); err != nil {
+			log.Println("thresholds set guild error:", err)
 			_ = respondEphemeral(s, i, "Failed to update threshold")
 			return
 		}
-
-		msg := fmt.Sprintf("Set %s to %.2f%%", canonical, val*100)
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: msg},
-		}); err != nil {
-			log.Println("failed to send public confirmation:", err)
-		}
+		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], val, i.Member.User.ID, guildID)
+		msg := fmt.Sprintf("Set %s to %.2f%% (this server)", canonical, val*100)
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: msg}})
 
 	case "reset":
 		var name string
@@ -376,23 +376,23 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			}
 		}
 		if name == "" {
-			_ = respondEphemeral(s, i, "Usage: /thresholds reset <Threshold|all>")
+			_ = respondEphemeral(s, i, "Usage: /thresholds reset <Name|all>")
 			return
 		}
 		if strings.EqualFold(name, "all") {
-			if err := thresholdsStore.ResetAll(perms); err != nil {
-				log.Println("thresholds reset all error:", err)
+			oldNS, oldNE, oldOff, oldAI := thresholdsStore.GetGuildThresholds(perms, guildID)
+			if err := thresholdsStore.ResetAllGuild(perms, guildID); err != nil {
+				log.Println("thresholds reset all guild error:", err)
 				_ = respondEphemeral(s, i, "Failed to reset thresholds")
 				return
 			}
-
-			msg := "Reset all thresholds to default"
-			if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: msg},
-			}); err != nil {
-				log.Println("failed to send public reset-all confirmation:", err)
-			}
+			_ = thresholdsStore.LogChange(perms, "NuditySuggestive", oldNS, DefaultNuditySuggestiveThreshold, i.Member.User.ID, guildID)
+			_ = thresholdsStore.LogChange(perms, "NudityExplicit", oldNE, DefaultNudityExplicitThreshold, i.Member.User.ID, guildID)
+			_ = thresholdsStore.LogChange(perms, "Offensive", oldOff, DefaultOffensiveThreshold, i.Member.User.ID, guildID)
+			_ = thresholdsStore.LogChange(perms, "AIGenerated", oldAI, DefaultAIGeneratedThreshold, i.Member.User.ID, guildID)
+			msg := "Reset all thresholds to default for this server"
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: msg}})
 			return
 		}
 		canonical, ok := canonicalThresholdName(name)
@@ -400,19 +400,18 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_ = respondEphemeral(s, i, "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated")
 			return
 		}
-		if err := thresholdsStore.ResetOne(perms, canonical); err != nil {
-			log.Println("thresholds reset one error:", err)
+		oldNS, oldNE, oldOff, oldAI := thresholdsStore.GetGuildThresholds(perms, guildID)
+		oldMap := map[string]float64{"NuditySuggestive": oldNS, "NudityExplicit": oldNE, "Offensive": oldOff, "AIGenerated": oldAI}
+		if err := thresholdsStore.ResetOneGuild(perms, guildID, canonical); err != nil {
+			log.Println("thresholds reset one guild error:", err)
 			_ = respondEphemeral(s, i, "Failed to reset threshold")
 			return
 		}
-
-		msg := fmt.Sprintf("Reset %s to default", canonical)
-		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: msg},
-		}); err != nil {
-			log.Println("failed to send public reset confirmation:", err)
-		}
+		// after reset, new value equals built-in default
+		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], defaultThresholdValue(canonical), i.Member.User.ID, guildID)
+		msg := fmt.Sprintf("Reset %s to default for this server", canonical)
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: msg}})
 	}
 }
 
