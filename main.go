@@ -1,5 +1,3 @@
-// go
-// file: `main.go`
 package main
 
 import (
@@ -26,7 +24,7 @@ const (
 var httpServer *http.Server
 
 func startHTTPServer() {
-	// Minimal HTTP server for Cloud Run health/readiness.
+	// Minimal HTTP server for Google Cloud Run health checks
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -61,7 +59,7 @@ func main() {
 		log.Fatal("BOT_TOKEN must be set in environment variables")
 	}
 
-	// Start Cloud Run HTTP server (health/readiness).
+	// Start HTTP server
 	startHTTPServer()
 
 	sess, err := discordgo.New("Bot " + token)
@@ -77,7 +75,7 @@ func main() {
 		}
 	}()
 
-	// Apply Rich Presence on READY.
+	// Apply Rich Presence on READY
 	sess.AddHandler(onReadySetPresence)
 
 	// Command handler: /analyse <image_url> [advanced]
@@ -113,7 +111,7 @@ func main() {
 			return
 		}
 
-		// Acknowledge immediately to avoid the 3s timeout, then edit with results.
+		// Acknowledge immediately to avoid the 3s timeout, then edit with results
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		}); err != nil {
@@ -121,7 +119,7 @@ func main() {
 			return
 		}
 
-		// If advanced is requested, use the advanced analysis and embed.
+		// If advanced is requested, use the advanced analysis and embed
 		if advanced {
 			advAnalysis, err := AnalyseImageURLAdvanced(imageURL)
 			if err != nil {
@@ -132,7 +130,7 @@ func main() {
 				return
 			}
 
-			// Helper to format a category map into a multiline percentage list sorted by score desc.
+			// Helper to format a category map into a multiline percentage list sorted by score description
 			formatScores := func(title string, m map[string]float64) *discordgo.MessageEmbedField {
 				if len(m) == 0 {
 					return &discordgo.MessageEmbedField{Name: title, Value: "none", Inline: false}
@@ -344,13 +342,13 @@ func main() {
 		})
 	})
 
-	// Open session before registering commands so s.State.User is populated.
+	// Open session before registering commands so s.State.User is populated
 	if err := sess.Open(); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Bot is now online!")
 
-	// Register the /analyse command (guild‑scoped if GUILD_ID is set, otherwise global).
+	// Register the /analyse command (guild‑scoped if GUILD_ID is set, otherwise global)
 	appID := sess.State.User.ID
 	guildID := os.Getenv("GUILD_ID")
 	cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
@@ -422,12 +420,12 @@ func main() {
 		}
 	}()
 
-	// Wait for exit signals.
+	// Wait for exit signals
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	// Graceful shutdown for HTTP server.
+	// Graceful shutdown for HTTP server
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if httpServer != nil {
