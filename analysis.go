@@ -84,7 +84,7 @@ func AnalyseResult(out map[string]any) *Analysis {
 		getFloat(nudity, "erotica"),
 	)
 	// Suggestive
-	a.Scores.NuditySuggestive = maxFloat(
+	a.Scores.NuditySuggestive = meanFloat(
 		getFloat(nudity, "very_suggestive"),
 		getFloat(nudity, "suggestive"),
 		getFloat(nudity, "mildly_suggestive"),
@@ -98,7 +98,6 @@ func AnalyseResult(out map[string]any) *Analysis {
 		getFloat(off, "confederate"),
 		getFloat(off, "supremacist"),
 		getFloat(off, "terrorist"),
-		getFloat(off, "middle_finger"),
 	)
 
 	// AI-generated content score
@@ -218,4 +217,16 @@ func maxFloat(vals ...float64) float64 {
 		}
 	}
 	return maximum
+}
+
+// Returns mean (average) of inputted values. Returns 0 if no values provided.
+func meanFloat(vals ...float64) float64 {
+	if len(vals) == 0 {
+		return 0.0
+	}
+	sum := 0.0
+	for _, v := range vals {
+		sum += v
+	}
+	return sum / float64(len(vals))
 }
