@@ -213,12 +213,12 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	embed := &discordgo.MessageEmbed{Title: "Help", Description: "Available commands", Color: 0x5865F2,
 		Fields: []*discordgo.MessageEmbedField{
-			{Name: "/ai", Value: "Checks an Image URL for AI usage.\nArguments: `image_url` (required): The Image URL to check", Inline: false},
-			{Name: "/analyse", Value: "Analyses an Image URL for inappropriate content.\nArguments:\n- `image_url` (required): The Image URL to analyse\n- `advanced` (optional): `true` shows detailed category and subcategory scores for nudity, offensive content and AI usage", Inline: false},
+			{Name: "/ai", Value: "Checks an Image URL for AI usage.\nArguments: `image_url` (required)", Inline: false},
+			{Name: "/analyse", Value: "Analyses an Image URL for inappropriate content.\nArguments:\n- `image_url` (required)\n- `advanced` (optional): `true` shows detailed category and subcategory scores", Inline: false},
 			{Name: "/help", Value: "Shows this message", Inline: false},
-			{Name: "/permissions", Value: "Manage which roles can use moderator-only commands", Inline: false},
+			{Name: "/permissions", Value: "Manage which roles can use moderator-only commands (owner/admin only)", Inline: false},
 			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
-			{Name: "/thresholds", Value: "Shows the current detection thresholds", Inline: false},
+			{Name: "/thresholds", Value: "Shows or modifies detection thresholds.\nSubcommands:\n- `list`: View current thresholds\n- `set name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated> value:<0.00–1.00>` (owner/admin only)\n- `reset name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated|all>` (owner/admin only)", Inline: false},
 		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
@@ -230,15 +230,17 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "thresholds" {
 		return
 	}
-	if !perms.IsAllowedForRestricted(i) {
-		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."}})
-		return
-	}
 
 	data := i.ApplicationCommandData()
-	// If no subcommand, show current thresholds
-	if len(data.Options) == 0 {
+
+	// If no subcommand or list => view only (allowed roles can view)
+	if len(data.Options) == 0 || data.Options[0].Name == "list" {
+		// allowed: either HasAdminContextPermission or perms.IsAllowedForRestricted
+		if !(HasAdminContextPermission(i) || perms.IsAllowedForRestricted(i)) {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to view thresholds."}})
+			return
+		}
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
 			log.Println("failed to defer thresholds:", err)
 			return
@@ -251,7 +253,13 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	// Has subcommand
+	// set/reset require owner/admin privileges
+	if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "Only server admins or the owner can modify thresholds."}})
+		return
+	}
+
 	sub := data.Options[0]
 	switch sub.Name {
 	case "set":
@@ -269,18 +277,19 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Data: &discordgo.InteractionResponseData{Content: "Usage: /thresholds set <Name> <Value>"}})
 			return
 		}
+
 		// Parse value: allow percent like 70% or 0.70
 		val, err := parseThresholdValue(valueStr)
 		if err != nil || val < 0 || val > 1 {
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Value must be a number between 0.00 and 1.00, or a percentage like 70%"}})
+				Data: &discordgo.InteractionResponseData{Content: "Value must be a decimal between 0.00 and 1.00, or a percentage like 70%"}})
 			return
 		}
 		// Normalise name variants
 		canonical, ok := canonicalThresholdName(name)
 		if !ok {
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold name. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
+				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
 			return
 		}
 		if err := thresholdsStore.Set(perms, canonical, val); err != nil {
@@ -319,7 +328,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		canonical, ok := canonicalThresholdName(name)
 		if !ok {
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold name. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
+				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
 			return
 		}
 		if err := thresholdsStore.ResetOne(perms, canonical); err != nil {

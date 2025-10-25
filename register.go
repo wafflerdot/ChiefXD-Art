@@ -67,20 +67,24 @@ func registerCommands(sess *discordgo.Session) {
 	}
 
 	// ----------------------------------------
-	// /thresholds
+	// /thresholds (list | set | reset)
 	// ----------------------------------------
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "thresholds",
 		Description: "Shows or modifies detection thresholds",
 		Options: []*discordgo.ApplicationCommandOption{
-			// list (default behaviour) has no subcommand; handled when no options are passed
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "list",
+				Description: "List current detection thresholds",
+			},
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "set",
 				Description: "Set a threshold (0.00-1.00 or a percentage like 70%)",
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionString, Name: "name", Description: "One of: NuditySuggestive, NudityExplicit, Offensive, AIGenerated", Required: true},
-					{Type: discordgo.ApplicationCommandOptionString, Name: "value", Description: "Decimal (0.0-1.0) or percentage (0-100%)", Required: true},
+					{Type: discordgo.ApplicationCommandOptionString, Name: "value", Description: "Decimal (0.00-1.00) or percentage (0-100%)", Required: true},
 				},
 			},
 			{
@@ -117,7 +121,7 @@ func registerCommands(sess *discordgo.Session) {
 	}
 
 	// ----------------------------------------
-	// /permissions add|remove|list
+	// /permissions <add | remove | list>
 	// ----------------------------------------
 	if _, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "permissions",
