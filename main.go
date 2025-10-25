@@ -170,7 +170,7 @@ func main() {
 			return
 		}
 
-		// Standard analysis (unchanged output).
+		// Standard analysis
 		a, err := AnalyseImageURL(imageURL)
 		if err != nil {
 			msg := fmt.Sprintf("Analysis failed: %v", err)
@@ -262,14 +262,57 @@ func main() {
 				},
 				{
 					Name:   "/ping",
-					Value:  "Displays the bot's response time.",
+					Value:  "Displays the bot's response time",
 					Inline: false,
 				},
 				{
 					Name:   "/help",
-					Value:  "Shows this message.",
+					Value:  "Shows this message",
 					Inline: false,
 				},
+				{
+					Name:   "/thresholds",
+					Value:  "Shows the current detection thresholds",
+					Inline: false,
+				},
+			},
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText},
+		}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{embed},
+		})
+	})
+
+	// Command handler: /thresholds
+	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.Type != discordgo.InteractionApplicationCommand {
+			return
+		}
+		if i.ApplicationCommandData().Name != "thresholds" {
+			return
+		}
+
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			log.Println("failed to defer thresholds:", err)
+			return
+		}
+
+		// Build a readable thresholds overview. Constants come from analysis.go.
+		val := fmt.Sprintf(
+			"Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%",
+			NudityExplicitThreshold*100,
+			NuditySuggestiveThreshold*100,
+			OffensiveThreshold*100,
+			AIGeneratedThreshold*100,
+		)
+		embed := &discordgo.MessageEmbed{
+			Title:       "Detection Thresholds",
+			Description: "Current thresholds to flag image as inappropriate",
+			Color:       0x9C27B0,
+			Fields: []*discordgo.MessageEmbedField{
+				{Name: "Thresholds", Value: val, Inline: false},
 			},
 			Footer: &discordgo.MessageEmbedFooter{Text: FooterText},
 		}
@@ -338,6 +381,20 @@ func main() {
 	}
 	defer func() {
 		if err := sess.ApplicationCommandDelete(appID, guildID, cmdHelp.ID); err != nil {
+			log.Println("failed to delete command:", err)
+		}
+	}()
+
+	// Register /thresholds
+	cmdThresholds, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "thresholds",
+		Description: "Shows the current detection thresholds",
+	})
+	if err != nil {
+		log.Fatalf("cannot create command thresholds: %v", err)
+	}
+	defer func() {
+		if err := sess.ApplicationCommandDelete(appID, guildID, cmdThresholds.ID); err != nil {
 			log.Println("failed to delete command:", err)
 		}
 	}()
