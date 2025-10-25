@@ -140,4 +140,4 @@ The process starts an HTTP server for health checks and the Discord gateway sess
 - AI assistance was used in some capacity in this project.
 
 ## Licence
-- All rights reserved
+- All rights reserved. You must not copy, distribute, or modify any of the contents of this repository without the express, written permission of Waffle.
