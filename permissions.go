@@ -102,7 +102,7 @@ func IsOwner(userID string) bool {
 	if env := strings.TrimSpace(os.Getenv("OWNER_ID")); env != "" {
 		return userID == env
 	}
-	return OwnerID != "" && userID == OwnerID
+	return userID == OwnerID
 }
 
 // HasAdminContextPermission returns true if the interaction member has Administrator or Manage Guild.
@@ -115,7 +115,7 @@ func HasAdminContextPermission(i *discordgo.InteractionCreate) bool {
 }
 
 // IsAllowedForRestricted checks whether the invoking user can access restricted commands in a guild.
-func (ps *PermStore) IsAllowedForRestricted(s *discordgo.Session, i *discordgo.InteractionCreate) bool {
+func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool {
 	// DMs: allow only owner
 	if i.GuildID == "" {
 		if i.Member != nil && i.Member.User != nil {
