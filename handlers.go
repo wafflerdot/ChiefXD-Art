@@ -34,10 +34,15 @@ func registerHandlers(sess *discordgo.Session) {
 	sess.AddHandler(handleThresholds)
 }
 
+// -------------------------
+// Admin: /permissions
+// -------------------------
 func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "permissions" {
 		return
 	}
+
+	// Only owner or admins can manage permissions
 	if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -45,16 +50,20 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 		return
 	}
+
+	// Defer to allow processing
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
 		log.Println("failed to defer permissions:", err)
 		return
 	}
+
 	data := i.ApplicationCommandData()
 	if len(data.Options) == 0 {
 		msg := "Missing subcommand. Use add, remove or list."
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 		return
 	}
+
 	sub := data.Options[0]
 	switch sub.Name {
 	case "add":
@@ -75,6 +84,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		embed := &discordgo.MessageEmbed{Title: "Permissions Updated", Description: "Added role.", Color: 0x2ECC71,
 			Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+
 	case "remove":
 		var roleID string
 		for _, opt := range sub.Options {
@@ -93,18 +103,23 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		embed := &discordgo.MessageEmbed{Title: "Permissions Updated", Description: "Removed role.", Color: 0xE74C3C,
 			Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+
 	case "list":
 		list := perms.ListRoles(i.GuildID)
 		val := FormatRoleList(s, i.GuildID, list)
 		embed := &discordgo.MessageEmbed{Title: "Permissions", Description: "Roles allowed to use restricted commands.", Color: 0x3498DB,
 			Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+
 	default:
 		msg := "Unknown subcommand."
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 	}
 }
 
+// -------------------------
+// /analyse
+// -------------------------
 func handleAnalyse(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "analyse" {
 		return
@@ -114,10 +129,12 @@ func handleAnalyse(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."}})
 		return
 	}
-	// The original /analyse handler body remains in main.go; here we call into it via a helper to keep parity
 	analyseCommandHandlerBody(s, i)
 }
 
+// -------------------------
+// /ai
+// -------------------------
 func handleAI(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "ai" {
 		return
@@ -130,6 +147,9 @@ func handleAI(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	aiCommandHandlerBody(s, i)
 }
 
+// -------------------------
+// /ping
+// -------------------------
 func handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "ping" {
 		return
@@ -149,6 +169,9 @@ func handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
+// -------------------------
+// /help
+// -------------------------
 func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "help" {
 		return
@@ -169,6 +192,9 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
+// -------------------------
+// /thresholds
+// -------------------------
 func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "thresholds" {
 		return
@@ -189,7 +215,9 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
-// The large bodies of analyse and ai are factored as helpers to keep parity with original behavior.
+// -------------------------
+// Command bodies (helpers)
+// -------------------------
 func analyseCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Extract options
 	var (

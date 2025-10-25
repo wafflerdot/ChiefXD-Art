@@ -17,13 +17,17 @@ const (
 )
 
 func main() {
+	// Load environment variables from .env if present
 	_ = godotenv.Load()
 
-	// Configure and load permissions persistence
+	// ----------------------------------------
+	// Permissions persistence (JSON-backed)
+	// ----------------------------------------
 	permsFile := os.Getenv("PERMS_FILE")
 	if permsFile == "" {
 		permsFile = "permissions.json"
 	}
+
 	perms.ConfigureFile(permsFile)
 	if err := perms.LoadFromFile(); err != nil {
 		log.Println("failed to load permissions file:", err)
@@ -31,10 +35,14 @@ func main() {
 		log.Println("permissions loaded from:", permsFile)
 	}
 
-	// Start HTTP health server for Cloud Run
+	// ----------------------------------------
+	// Start lightweight HTTP health server
+	// ----------------------------------------
 	startHTTPServer()
 
-	// Discord Bot
+	// ----------------------------------------
+	// Discord session setup
+	// ----------------------------------------
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
 		log.Fatal("BOT_TOKEN must be set in environment variables")
@@ -53,10 +61,10 @@ func main() {
 		}
 	}()
 
-	// Wire handlers (READY + slash commands)
+	// Register gateway and command handlers
 	registerHandlers(sess)
 
-	// Open session before registering commands so s.State.User is populated
+	// Open the WebSocket connection to Discord before creating commands
 	if err := sess.Open(); err != nil {
 		log.Fatal(err)
 	}
@@ -65,7 +73,9 @@ func main() {
 	// Create slash commands (global or guild scoped depending on GUILD_ID)
 	registerCommands(sess)
 
-	// Wait for exit signals.
+	// ----------------------------------------
+	// Block until termination, then graceful shutdown
+	// ----------------------------------------
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc

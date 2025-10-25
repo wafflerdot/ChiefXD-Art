@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// sightengine calls the Sightengine API with the full model set used by standard/advanced analysis
 func sightengine(imageLink string) (map[string]any, error) {
 	apiUser := os.Getenv("SIGHTENGINE_USER")
 	apiSecret := os.Getenv("SIGHTENGINE_SECRET")
@@ -52,6 +53,7 @@ func sightengine(imageLink string) (map[string]any, error) {
 	return out, nil
 }
 
+// sightengineAIOnly calls the Sightengine API with the AI detection only model
 func sightengineAIOnly(imageLink string) (map[string]any, error) {
 	apiUser := os.Getenv("SIGHTENGINE_USER")
 	apiSecret := os.Getenv("SIGHTENGINE_SECRET")

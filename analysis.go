@@ -41,6 +41,7 @@ func AnalyseImageURL(imageURL string) (*Analysis, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Normalise raw response into an Analysis struct
 	a := AnalyseResult(out)
 	return a, nil
 }
@@ -85,12 +86,14 @@ func AnalyseResult(out map[string]any) *Analysis {
 	// Extract scores
 	// Nudity scores separated into explicit and suggestive
 	nudity := getMap(out, "nudity")
+
 	// Explicit
 	a.Scores.NudityExplicit = maxFloat(
 		getFloat(nudity, "sexual_activity"),
 		getFloat(nudity, "sexual_display"),
 		getFloat(nudity, "erotica"),
 	)
+
 	// Suggestive
 	a.Scores.NuditySuggestive = meanFloat(
 		getFloat(nudity, "very_suggestive"),

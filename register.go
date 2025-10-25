@@ -12,13 +12,16 @@ import (
 func registerCommands(sess *discordgo.Session) {
 	appID := sess.State.User.ID
 	guildID := os.Getenv("GUILD_ID")
+
 	if guildID == "" {
 		log.Println("Registering global application commands (GUILD_ID not set)")
 	} else {
 		log.Printf("Registering guild-scoped application commands to guild %s", guildID)
 	}
 
-	// analyse
+	// ----------------------------------------
+	// /analyse
+	// ----------------------------------------
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "analyse",
 		Description: "Analyses an Image URL for inappropriate content",
@@ -32,28 +35,45 @@ func registerCommands(sess *discordgo.Session) {
 		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
 	}
 
-	// ping
-	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{Name: "ping", Description: "Pong!"}); err != nil {
+	// ----------------------------------------
+	// /ping
+	// ----------------------------------------
+	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "ping",
+		Description: "Pong!",
+	}); err != nil {
 		log.Fatalf("cannot create command ping: %v", err)
 	} else {
 		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
 	}
 
-	// help
-	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{Name: "help", Description: "Shows a list of commands"}); err != nil {
+	// ----------------------------------------
+	// /help
+	// ----------------------------------------
+	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "help",
+		Description: "Shows a list of commands",
+	}); err != nil {
 		log.Fatalf("cannot create command help: %v", err)
 	} else {
 		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
 	}
 
-	// thresholds
-	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{Name: "thresholds", Description: "Shows the current detection thresholds"}); err != nil {
+	// ----------------------------------------
+	// /thresholds
+	// ----------------------------------------
+	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "thresholds",
+		Description: "Shows the current detection thresholds",
+	}); err != nil {
 		log.Fatalf("cannot create command thresholds: %v", err)
 	} else {
 		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
 	}
 
-	// ai
+	// ----------------------------------------
+	// /ai
+	// ----------------------------------------
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "ai",
 		Description: "Checks an Image URL for AI usage",
@@ -66,7 +86,9 @@ func registerCommands(sess *discordgo.Session) {
 		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
 	}
 
-	// permissions
+	// ----------------------------------------
+	// /permissions add|remove|list
+	// ----------------------------------------
 	if _, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "permissions",
 		Description: "Manage roles allowed to use moderator-only commands",
@@ -81,14 +103,18 @@ func registerCommands(sess *discordgo.Session) {
 		log.Fatalf("cannot create command permissions: %v", err)
 	}
 
-	// Debug list
+	// ----------------------------------------
+	// Debug list stored commands for the chosen scope
+	// ----------------------------------------
 	go func() {
 		time.Sleep(2 * time.Second)
+
 		listScope := guildID
 		scopeLabel := "global"
 		if guildID != "" {
 			scopeLabel = "guild"
 		}
+
 		cmds, err := sess.ApplicationCommands(appID, listScope)
 		if err != nil {
 			log.Printf("failed to list %s application commands: %v", scopeLabel, err)
