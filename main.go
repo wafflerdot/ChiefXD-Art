@@ -46,6 +46,11 @@ func main() {
 		}
 	}
 
+	// Initialize thresholds store and load values from DB if present
+	if err := thresholdsStore.Init(perms); err != nil {
+		log.Println("thresholds init error:", err)
+	}
+
 	// ----------------------------------------
 	// Start lightweight HTTP health server
 	// ----------------------------------------

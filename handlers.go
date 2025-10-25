@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -234,15 +235,103 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."}})
 		return
 	}
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
-		log.Println("failed to defer thresholds:", err)
+
+	data := i.ApplicationCommandData()
+	// If no subcommand, show current thresholds
+	if len(data.Options) == 0 {
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
+			log.Println("failed to defer thresholds:", err)
+			return
+		}
+		val := fmt.Sprintf("Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%",
+			NudityExplicitThreshold*100, NuditySuggestiveThreshold*100, OffensiveThreshold*100, AIGeneratedThreshold*100)
+		embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds to flag image as inappropriate", Color: 0x9C27B0,
+			Fields: []*discordgo.MessageEmbedField{{Name: "Thresholds", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
 	}
-	val := fmt.Sprintf("Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%",
-		NudityExplicitThreshold*100, NuditySuggestiveThreshold*100, OffensiveThreshold*100, AIGeneratedThreshold*100)
-	embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds to flag image as inappropriate", Color: 0x9C27B0,
-		Fields: []*discordgo.MessageEmbedField{{Name: "Thresholds", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
-	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+
+	// Has subcommand
+	sub := data.Options[0]
+	switch sub.Name {
+	case "set":
+		var name, valueStr string
+		for _, opt := range sub.Options {
+			if opt.Name == "name" {
+				name = strings.TrimSpace(opt.StringValue())
+			}
+			if opt.Name == "value" {
+				valueStr = strings.TrimSpace(opt.StringValue())
+			}
+		}
+		if name == "" || valueStr == "" {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Usage: /thresholds set <Name> <Value>"}})
+			return
+		}
+		// Parse value: allow percent like 70% or 0.70
+		val, err := parseThresholdValue(valueStr)
+		if err != nil || val < 0 || val > 1 {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Value must be a number between 0.00 and 1.00, or a percentage like 70%"}})
+			return
+		}
+		// Normalise name variants
+		canonical, ok := canonicalThresholdName(name)
+		if !ok {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold name. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
+			return
+		}
+		if err := thresholdsStore.Set(perms, canonical, val); err != nil {
+			log.Println("thresholds set error:", err)
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Failed to update threshold"}})
+			return
+		}
+		msg := fmt.Sprintf("Set %s to %.2f%%", canonical, val*100)
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: msg}})
+
+	case "reset":
+		var name string
+		for _, opt := range sub.Options {
+			if opt.Name == "name" {
+				name = strings.TrimSpace(opt.StringValue())
+			}
+		}
+		if name == "" {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Usage: /thresholds reset <Name|all>"}})
+			return
+		}
+		if strings.EqualFold(name, "all") {
+			if err := thresholdsStore.ResetAll(perms); err != nil {
+				log.Println("thresholds reset all error:", err)
+				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{Content: "Failed to reset thresholds"}})
+				return
+			}
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Reset all thresholds to default"}})
+			return
+		}
+		canonical, ok := canonicalThresholdName(name)
+		if !ok {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Unknown threshold name. Use NuditySuggestive, NudityExplicit, Offensive, or AIGenerated"}})
+			return
+		}
+		if err := thresholdsStore.ResetOne(perms, canonical); err != nil {
+			log.Println("thresholds reset one error:", err)
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "Failed to reset threshold"}})
+			return
+		}
+		msg := fmt.Sprintf("Reset %s to default", canonical)
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: msg}})
+	}
 }
 
 // -------------------------
@@ -355,4 +444,33 @@ func aiCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCreate) 
 	embed := &discordgo.MessageEmbed{Title: "AI Usage Check", Description: fmt.Sprintf("Analysis results for: %s", imageURL), Color: 0x3F51B5,
 		Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+}
+
+func parseThresholdValue(in string) (float64, error) {
+	s := strings.TrimSpace(in)
+	if strings.HasSuffix(s, "%") {
+		p := strings.TrimSuffix(s, "%")
+		f, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
+		if err != nil {
+			return 0, err
+		}
+		return f / 100.0, nil
+	}
+	return strconv.ParseFloat(s, 64)
+}
+
+func canonicalThresholdName(in string) (string, bool) {
+	s := strings.ToLower(strings.TrimSpace(in))
+	switch s {
+	case "nuditysuggestive", "suggestive", "nudity_suggestive":
+		return "NuditySuggestive", true
+	case "nudityexplicit", "explicit", "nudity_explicit":
+		return "NudityExplicit", true
+	case "offensive", "offensive_symbols", "offensivesymbols":
+		return "Offensive", true
+	case "aigenerated", "ai", "genai", "ai_generated":
+		return "AIGenerated", true
+	default:
+		return "", false
+	}
 }

@@ -71,7 +71,27 @@ func registerCommands(sess *discordgo.Session) {
 	// ----------------------------------------
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "thresholds",
-		Description: "Shows the current detection thresholds",
+		Description: "Shows or modifies detection thresholds",
+		Options: []*discordgo.ApplicationCommandOption{
+			// list (default behaviour) has no subcommand; handled when no options are passed
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "set",
+				Description: "Set a threshold (0.00-1.00 or a percentage like 70%)",
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionString, Name: "name", Description: "One of: NuditySuggestive, NudityExplicit, Offensive, AIGenerated", Required: true},
+					{Type: discordgo.ApplicationCommandOptionString, Name: "value", Description: "Decimal (0.0-1.0) or percentage (0-100%)", Required: true},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "reset",
+				Description: "Reset thresholds to default (one or all)",
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionString, Name: "name", Description: "NuditySuggestive, NudityExplicit, Offensive, AIGenerated, or all", Required: true},
+				},
+			},
+		},
 	}); err != nil {
 		log.Fatalf("cannot create command thresholds: %v", err)
 	} else {

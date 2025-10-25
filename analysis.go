@@ -1,12 +1,19 @@
 package main
 
-// Tunable thresholds for policy checks
-// 1.00 = 100% certain flag; 0.00 = no flag
+// Default thresholds (kept constant, used to reset)
 const (
-	NuditySuggestiveThreshold = 0.75
-	NudityExplicitThreshold   = 0.25
-	OffensiveThreshold        = 0.25
-	AIGeneratedThreshold      = 0.60
+	DefaultNuditySuggestiveThreshold = 0.75
+	DefaultNudityExplicitThreshold   = 0.25
+	DefaultOffensiveThreshold        = 0.25
+	DefaultAIGeneratedThreshold      = 0.60
+)
+
+// Active thresholds (mutable at runtime)
+var (
+	NuditySuggestiveThreshold = DefaultNuditySuggestiveThreshold
+	NudityExplicitThreshold   = DefaultNudityExplicitThreshold
+	OffensiveThreshold        = DefaultOffensiveThreshold
+	AIGeneratedThreshold      = DefaultAIGeneratedThreshold
 )
 
 // Analysis is a summary of the API result
