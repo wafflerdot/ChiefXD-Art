@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
+	"time"
 )
 
 // ThresholdsStore persists active thresholds if a DB is configured.
@@ -34,6 +36,34 @@ func (ts *ThresholdsStore) Init(ps *PermStore) error {
 	if _, err := ps.db.Exec(ddl); err != nil {
 		return fmt.Errorf("create thresholds table: %w", err)
 	}
+
+	// Create history table for audit logs
+	switch ps.dialect {
+	case DialectPostgres:
+		ddl = `CREATE TABLE IF NOT EXISTS thresholds_history (
+			id BIGSERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			old_value DOUBLE PRECISION,
+			new_value DOUBLE PRECISION NOT NULL,
+			user_id TEXT,
+			guild_id TEXT,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`
+	case DialectMySQL:
+		ddl = `CREATE TABLE IF NOT EXISTS thresholds_history (
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(64) NOT NULL,
+			old_value DOUBLE NULL,
+			new_value DOUBLE NOT NULL,
+			user_id VARCHAR(64) NULL,
+			guild_id VARCHAR(64) NULL,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+	}
+	if _, err := ps.db.Exec(ddl); err != nil {
+		return fmt.Errorf("create thresholds_history table: %w", err)
+	}
+
 	return ts.Load(ps)
 }
 
@@ -132,4 +162,80 @@ func (ts *ThresholdsStore) ResetAll(ps *PermStore) error {
 		return err
 	}
 	return nil
+}
+
+// ThresholdChange represents an audit log entry for a set/reset operation.
+type ThresholdChange struct {
+	Name     string
+	OldValue sql.NullFloat64
+	NewValue float64
+	UserID   sql.NullString
+	GuildID  sql.NullString
+	Created  time.Time
+}
+
+// LogChange writes an audit record; no-op when DB is not configured.
+func (ts *ThresholdsStore) LogChange(ps *PermStore, name string, oldVal, newVal float64, userID, guildID string) error {
+	if ps == nil || ps.db == nil {
+		return nil
+	}
+	var stmt string
+	switch ps.dialect {
+	case DialectPostgres:
+		stmt = `INSERT INTO thresholds_history (name, old_value, new_value, user_id, guild_id) VALUES ($1, $2, $3, $4, $5)`
+	case DialectMySQL:
+		stmt = `INSERT INTO thresholds_history (name, old_value, new_value, user_id, guild_id) VALUES (?, ?, ?, ?, ?)`
+	}
+	_, err := ps.db.Exec(stmt, name, oldVal, newVal, userID, guildID)
+	return err
+}
+
+// History returns last N threshold changes ordered by newest first; empty when DB not configured.
+func (ts *ThresholdsStore) History(ps *PermStore, limit int) ([]ThresholdChange, error) {
+	changes := []ThresholdChange{}
+	if ps == nil || ps.db == nil {
+		return changes, nil
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	switch ps.dialect {
+	case DialectPostgres:
+		rows, err = ps.db.Query(`SELECT name, old_value, new_value, user_id, guild_id, created_at FROM thresholds_history ORDER BY created_at DESC LIMIT $1`, limit)
+	case DialectMySQL:
+		rows, err = ps.db.Query(`SELECT name, old_value, new_value, user_id, guild_id, created_at FROM thresholds_history ORDER BY created_at DESC LIMIT ?`, limit)
+	}
+	if err != nil {
+		return changes, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c ThresholdChange
+		if err := rows.Scan(&c.Name, &c.OldValue, &c.NewValue, &c.UserID, &c.GuildID, &c.Created); err != nil {
+			log.Println("thresholds history scan:", err)
+			continue
+		}
+		changes = append(changes, c)
+	}
+	return changes, nil
+}
+
+// currentThresholdValue returns the active in-memory value by canonical name.
+func currentThresholdValue(name string) float64 {
+	switch name {
+	case "NuditySuggestive":
+		return NuditySuggestiveThreshold
+	case "NudityExplicit":
+		return NudityExplicitThreshold
+	case "Offensive":
+		return OffensiveThreshold
+	case "AIGenerated":
+		return AIGeneratedThreshold
+	default:
+		return 0
+	}
 }

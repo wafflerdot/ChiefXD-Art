@@ -95,6 +95,14 @@ func registerCommands(sess *discordgo.Session) {
 					{Type: discordgo.ApplicationCommandOptionString, Name: "name", Description: "NuditySuggestive, NudityExplicit, Offensive, AIGenerated, or all", Required: true},
 				},
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "history",
+				Description: "Show recent threshold changes",
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionInteger, Name: "limit", Description: "How many recent changes to show (1-100)", Required: false},
+				},
+			},
 		},
 	}); err != nil {
 		log.Fatalf("cannot create command thresholds: %v", err)

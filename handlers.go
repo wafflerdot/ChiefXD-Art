@@ -241,7 +241,6 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	// If no subcommand or list => view only (allowed roles can view)
 	if len(data.Options) == 0 || data.Options[0].Name == "list" {
-		// allowed: either HasAdminContextPermission or perms.IsAllowedForRestricted
 		if !(HasAdminContextPermission(i) || perms.IsAllowedForRestricted(i)) {
 			_ = respondEphemeral(s, i, "You don't have permission to view thresholds.")
 			return
@@ -254,6 +253,51 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			NudityExplicitThreshold*100, NuditySuggestiveThreshold*100, OffensiveThreshold*100, AIGeneratedThreshold*100)
 		embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds to flag image as inappropriate", Color: 0x9C27B0,
 			Fields: []*discordgo.MessageEmbedField{{Name: "Thresholds", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+		return
+	}
+
+	// History: view-only (allowed roles or admins)
+	if data.Options[0].Name == "history" {
+		if !(HasAdminContextPermission(i) || perms.IsAllowedForRestricted(i)) {
+			_ = respondEphemeral(s, i, "You don't have permission to view threshold history.")
+			return
+		}
+		limit := 10
+		for _, opt := range data.Options[0].Options {
+			if opt.Name == "limit" {
+				limit = int(opt.IntValue())
+			}
+		}
+		changes, err := thresholdsStore.History(perms, limit)
+		if err != nil {
+			log.Println("thresholds history error:", err)
+			_ = respondEphemeral(s, i, "Failed to fetch history")
+			return
+		}
+		if len(changes) == 0 {
+			_ = respondEphemeral(s, i, "No history available.")
+			return
+		}
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
+			log.Println("failed to defer thresholds history:", err)
+			return
+		}
+		fields := make([]*discordgo.MessageEmbedField, 0, len(changes))
+		for _, c := range changes {
+			user := "unknown"
+			if c.UserID.Valid {
+				user = "<@" + c.UserID.String + ">"
+			}
+			old := "n/a"
+			if c.OldValue.Valid {
+				old = fmt.Sprintf("%.2f%%", c.OldValue.Float64*100)
+			}
+			val := fmt.Sprintf("%s\nOld: %s → New: %.2f%%\nBy: %s\nAt: %s",
+				c.Name, old, c.NewValue*100, user, c.Created.Format(time.RFC3339))
+			fields = append(fields, &discordgo.MessageEmbedField{Name: "Change", Value: val, Inline: false})
+		}
+		embed := &discordgo.MessageEmbed{Title: "Thresholds History", Color: 0x8E44AD, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
 	}
