@@ -13,7 +13,6 @@ const (
 // - Allowed: general verdict (true = no flags, false = flagged)
 // - Reasons: list of flagged reasons
 // - Scores: normalised scores
-// - TextCounts: counts of flags in each category
 // - MediaURI: optional URI of the analysed media
 type Analysis struct {
 	Allowed bool
@@ -30,7 +29,7 @@ type Analysis struct {
 	MediaURI string
 }
 
-// AdvancedAnalysis captures all numeric sub‑scores by category, plus text counts.
+// AdvancedAnalysis captures all numeric sub‑scores by category
 type AdvancedAnalysis struct {
 	Categories map[string]map[string]float64 // e.g., "nudity" -> {"none":0.95, "suggestive":0.02, ...}
 	MediaURI   string
@@ -114,7 +113,8 @@ func AnalyseResult(out map[string]any) *Analysis {
 	// Build reasons from thresholds
 	if a.Scores.NudityExplicit >= NudityExplicitThreshold {
 		a.Reasons = append(a.Reasons, "nudity_explicit")
-	} else if a.Scores.NuditySuggestive >= NuditySuggestiveThreshold {
+	}
+	if a.Scores.NuditySuggestive >= NuditySuggestiveThreshold {
 		a.Reasons = append(a.Reasons, "nudity_suggestive")
 	}
 	if a.Scores.Offensive >= OffensiveThreshold {
