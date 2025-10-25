@@ -53,6 +53,18 @@ func startHTTPServer() {
 func main() {
 	_ = godotenv.Load()
 
+	// Configure and load permissions persistence
+	permsFile := os.Getenv("PERMS_FILE")
+	if permsFile == "" {
+		permsFile = "permissions.json"
+	}
+	perms.ConfigureFile(permsFile)
+	if err := perms.LoadFromFile(); err != nil {
+		log.Println("failed to load permissions file:", err)
+	} else {
+		log.Println("permissions loaded from:", permsFile)
+	}
+
 	// Discord Bot
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
@@ -78,6 +90,88 @@ func main() {
 	// Apply Rich Presence on READY
 	sess.AddHandler(onReadySetPresence)
 
+	// Permissions admin command: /permissions add|remove|list
+	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.Type != discordgo.InteractionApplicationCommand {
+			return
+		}
+		if i.ApplicationCommandData().Name != "permissions" {
+			return
+		}
+
+		// Only owner or admins can manage permissions
+		if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to manage roles."},
+			})
+			return
+		}
+
+		// Defer to allow processing
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			log.Println("failed to defer permissions:", err)
+			return
+		}
+
+		data := i.ApplicationCommandData()
+		if len(data.Options) == 0 {
+			msg := "Missing subcommand. Use add, remove or list."
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+			return
+		}
+		sub := data.Options[0]
+		switch sub.Name {
+		case "add":
+			var roleID string
+			for _, opt := range sub.Options {
+				if opt.Name == "role" {
+					roleID = opt.RoleValue(s, i.GuildID).ID
+				}
+			}
+			if roleID == "" {
+				msg := "Missing role."
+				_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+				return
+			}
+			perms.AddRole(i.GuildID, roleID)
+			list := perms.ListRoles(i.GuildID)
+			val := FormatRoleList(s, i.GuildID, list)
+			embed := &discordgo.MessageEmbed{Title: "Permissions Updated", Description: "Added role.", Color: 0x2ECC71,
+				Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+		case "remove":
+			var roleID string
+			for _, opt := range sub.Options {
+				if opt.Name == "role" {
+					roleID = opt.RoleValue(s, i.GuildID).ID
+				}
+			}
+			if roleID == "" {
+				msg := "Missing role."
+				_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+				return
+			}
+			perms.RemoveRole(i.GuildID, roleID)
+			list := perms.ListRoles(i.GuildID)
+			val := FormatRoleList(s, i.GuildID, list)
+			embed := &discordgo.MessageEmbed{Title: "Permissions Updated", Description: "Removed role.", Color: 0xE74C3C,
+				Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+		case "list":
+			list := perms.ListRoles(i.GuildID)
+			val := FormatRoleList(s, i.GuildID, list)
+			embed := &discordgo.MessageEmbed{Title: "Permissions", Description: "Roles allowed to use restricted commands.", Color: 0x3498DB,
+				Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+		default:
+			msg := "Unknown subcommand."
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+		}
+	})
+
 	// Command handler: /analyse <image_url> [advanced]
 	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// Only respond to application command interactions.
@@ -85,6 +179,15 @@ func main() {
 			return
 		}
 		if i.ApplicationCommandData().Name != "analyse" {
+			return
+		}
+
+		// Restrict: require owner/admin or allowed role
+		if !perms.IsAllowedForRestricted(s, i) {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."},
+			})
 			return
 		}
 
@@ -230,6 +333,15 @@ func main() {
 			return
 		}
 
+		// Restrict: require owner/admin or allowed role
+		if !perms.IsAllowedForRestricted(s, i) {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."},
+			})
+			return
+		}
+
 		var imageURL string
 		for _, opt := range i.ApplicationCommandData().Options {
 			if opt.Name == "image_url" {
@@ -354,6 +466,11 @@ func main() {
 					Value:  "Checks an Image URL for AI usage.\nArguments: `image_url` (required): The Image URL to check",
 					Inline: false,
 				},
+				{
+					Name:   "/permissions",
+					Value:  "Manage who can use restricted commands",
+					Inline: false,
+				},
 			},
 			Footer: &discordgo.MessageEmbedFooter{Text: FooterText},
 		}
@@ -368,6 +485,15 @@ func main() {
 			return
 		}
 		if i.ApplicationCommandData().Name != "thresholds" {
+			return
+		}
+
+		// Restrict: require owner/admin or allowed role
+		if !perms.IsAllowedForRestricted(s, i) {
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."},
+			})
 			return
 		}
 
@@ -487,6 +613,38 @@ func main() {
 		log.Fatalf("cannot create command ai: %v", err)
 	}
 	log.Printf("created command: %s (id=%s)", cmdAI.Name, cmdAI.ID)
+
+	// Register /permissions command (with subcommands)
+	_, err = sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "permissions",
+		Description: "Manage who can use restricted commands",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "add",
+				Description: "Add a role allowed to use restricted commands",
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "Role to allow", Required: true},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "remove",
+				Description: "Remove a role from the allowed list",
+				Options: []*discordgo.ApplicationCommandOption{
+					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "Role to remove", Required: true},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "list",
+				Description: "List roles allowed to use restricted commands",
+			},
+		},
+	})
+	if err != nil {
+		log.Fatalf("cannot create command permissions: %v", err)
+	}
 
 	// Debug: list commands in the chosen scope to verify what Discord has stored
 	go func() {
