@@ -136,5 +136,8 @@ The process starts an HTTP server for health checks and the Discord gateway sess
 - Keep secrets out of version control; use Cloud Run secrets or environment variables
 - If a token has been exposed, rotate it immediately
 
+## AI Disclaimer
+- AI assistance was used in some capacity in this project.
+
 ## Licence
 - All rights reserved
