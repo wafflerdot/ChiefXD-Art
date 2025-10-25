@@ -158,7 +158,7 @@ func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool
 }
 
 // FormatRoleList turns role IDs into a human-readable list as Discord mentions.
-// Example: <@123>, <@456>
+// Example: <@&123>, <@&456>
 func FormatRoleList(_ *discordgo.Session, _ string, roleIDs []string) string {
 	if len(roleIDs) == 0 {
 		return "(none configured)"
@@ -169,7 +169,7 @@ func FormatRoleList(_ *discordgo.Session, _ string, roleIDs []string) string {
 		if id == "" {
 			continue
 		}
-		mentions = append(mentions, "<@"+id+">")
+		mentions = append(mentions, "<@&"+id+">")
 	}
 	if len(mentions) == 0 {
 		return "(none configured)"
