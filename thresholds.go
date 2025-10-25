@@ -7,6 +7,14 @@ import (
 	"time"
 )
 
+// Active thresholds (mutable at runtime)
+var (
+	NuditySuggestiveThreshold = DefaultNuditySuggestiveThreshold
+	NudityExplicitThreshold   = DefaultNudityExplicitThreshold
+	OffensiveThreshold        = DefaultOffensiveThreshold
+	AIGeneratedThreshold      = DefaultAIGeneratedThreshold
+)
+
 // ThresholdsStore persists active thresholds if a DB is configured.
 // If no DB is configured, it is a no-op and values remain in-memory.
 type ThresholdsStore struct{}

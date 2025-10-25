@@ -8,14 +8,6 @@ const (
 	DefaultAIGeneratedThreshold      = 0.60
 )
 
-// Active thresholds (mutable at runtime)
-var (
-	NuditySuggestiveThreshold = DefaultNuditySuggestiveThreshold
-	NudityExplicitThreshold   = DefaultNudityExplicitThreshold
-	OffensiveThreshold        = DefaultOffensiveThreshold
-	AIGeneratedThreshold      = DefaultAIGeneratedThreshold
-)
-
 // Analysis is a summary of the API result
 // - Allowed: general verdict (true = no flags, false = flagged)
 // - Reasons: list of flagged reasons
@@ -43,13 +35,14 @@ type AdvancedAnalysis struct {
 }
 
 // AnalyseImageURL runs the API request via sightengine and analyses the result
-func AnalyseImageURL(imageURL string) (*Analysis, error) {
+func AnalyseImageURL(guildID, imageURL string) (*Analysis, error) {
 	out, err := sightengine(imageURL)
 	if err != nil {
 		return nil, err
 	}
-	// Normalise raw response into an Analysis struct
-	a := AnalyseResult(out)
+	// Normalise raw response into an Analysis struct using guild-specific thresholds
+	ns, ne, off, ai := thresholdsStore.GetGuildThresholds(perms, guildID)
+	a := AnalyseResult(out, ns, ne, off, ai)
 	return a, nil
 }
 
@@ -63,12 +56,13 @@ func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
 }
 
 // AnalyseImageURLAIOnly runs the AI-only API request via sightengine and analyses the result
-func AnalyseImageURLAIOnly(imageURL string) (*Analysis, error) {
+func AnalyseImageURLAIOnly(guildID, imageURL string) (*Analysis, error) {
 	out, err := sightengineAIOnly(imageURL)
 	if err != nil {
 		return nil, err
 	}
-	return AnalyseResult(out), nil
+	ns, ne, off, ai := thresholdsStore.GetGuildThresholds(perms, guildID)
+	return AnalyseResult(out, ns, ne, off, ai), nil
 }
 
 // AnalyseTempFile loads a local JSON result (e.g., 'temp.json') and analyses it
@@ -86,19 +80,8 @@ func AnalyseImageURLAIOnly(imageURL string) (*Analysis, error) {
 //	return a, nil
 //}
 
-// EffectiveThresholds returns nudity suggestive, nudity explicit, offensive, ai thresholds for a guild
-func EffectiveThresholds(guildID string) (ns, ne, off, ai float64) {
-	ns, ne, off, ai = DefaultNuditySuggestiveThreshold, DefaultNudityExplicitThreshold, DefaultOffensiveThreshold, DefaultAIGeneratedThreshold
-	if perms != nil {
-		gns, gne, goff, gai := thresholdsStore.GetGuildThresholds(perms, guildID)
-		// Use guild thresholds when DB available, otherwise stick to defaults
-		ns, ne, off, ai = gns, gne, goff, gai
-	}
-	return
-}
-
-// AnalyseResult converts the raw map into an Analysis summary using configured thresholds
-func AnalyseResult(out map[string]any) *Analysis {
+// AnalyseResult converts the raw map into an Analysis summary using provided thresholds
+func AnalyseResult(out map[string]any, nsThresh, neThresh, offThresh, aiThresh float64) *Analysis {
 	a := &Analysis{}
 
 	// Extract scores
@@ -141,16 +124,16 @@ func AnalyseResult(out map[string]any) *Analysis {
 	}
 
 	// Build reasons from thresholds
-	if a.Scores.NudityExplicit >= NudityExplicitThreshold {
+	if a.Scores.NudityExplicit >= neThresh {
 		a.Reasons = append(a.Reasons, "nudity_explicit")
 	}
-	if a.Scores.NuditySuggestive >= NuditySuggestiveThreshold {
+	if a.Scores.NuditySuggestive >= nsThresh {
 		a.Reasons = append(a.Reasons, "nudity_suggestive")
 	}
-	if a.Scores.Offensive >= OffensiveThreshold {
+	if a.Scores.Offensive >= offThresh {
 		a.Reasons = append(a.Reasons, "offensive_symbols")
 	}
-	if a.Scores.AIGenerated >= AIGeneratedThreshold {
+	if a.Scores.AIGenerated >= aiThresh {
 		a.Reasons = append(a.Reasons, "ai_generated_high")
 	}
 

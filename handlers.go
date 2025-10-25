@@ -479,7 +479,7 @@ func analyseCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCre
 		return
 	}
 	// Standard
-	a, err := AnalyseImageURL(imageURL)
+	a, err := AnalyseImageURL(i.GuildID, imageURL)
 	if err != nil {
 		msg := fmt.Sprintf("Analysis failed: %v", err)
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
@@ -510,7 +510,7 @@ func aiCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		log.Println("failed to defer ai interaction:", err)
 		return
 	}
-	analysis, err := AnalyseImageURLAIOnly(imageURL)
+	analysis, err := AnalyseImageURLAIOnly(i.GuildID, imageURL)
 	if err != nil {
 		msg := fmt.Sprintf("AI check failed: %v", err)
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
