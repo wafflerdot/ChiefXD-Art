@@ -3,7 +3,7 @@ package main
 // Tunable thresholds for policy checks
 // 1.00 = 100% certain flag; 0.00 = no flag
 const (
-	NuditySuggestiveThreshold = 0.70
+	NuditySuggestiveThreshold = 0.75
 	NudityExplicitThreshold   = 0.25
 	OffensiveThreshold        = 0.25
 	AIGeneratedThreshold      = 0.60

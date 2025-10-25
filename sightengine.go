@@ -52,7 +52,7 @@ func sightengine(imageLink string) (map[string]any, error) {
 	return out, nil
 }
 
-func sightengineAIonly(imageLink string) (map[string]any, error) {
+func sightengineAIOnly(imageLink string) (map[string]any, error) {
 	apiUser := os.Getenv("SIGHTENGINE_USER")
 	apiSecret := os.Getenv("SIGHTENGINE_SECRET")
 	if apiUser == "" || apiSecret == "" {
