@@ -446,11 +446,11 @@ func main() {
 		log.Fatalf("cannot create command ping: %v", err)
 	}
 	log.Printf("created command: %s (id=%s)", cmdPing.Name, cmdPing.ID)
-	defer func() {
-		if err := sess.ApplicationCommandDelete(appID, guildID, cmdPing.ID); err != nil {
-			log.Println("failed to delete command:", err)
-		}
-	}()
+	//defer func() {
+	//	if err := sess.ApplicationCommandDelete(appID, guildID, cmdPing.ID); err != nil {
+	//		log.Println("failed to delete command:", err)
+	//	}
+	//}()
 
 	// Register /help
 	cmdHelp, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
@@ -461,11 +461,11 @@ func main() {
 		log.Fatalf("cannot create command help: %v", err)
 	}
 	log.Printf("created command: %s (id=%s)", cmdHelp.Name, cmdHelp.ID)
-	defer func() {
-		if err := sess.ApplicationCommandDelete(appID, guildID, cmdHelp.ID); err != nil {
-			log.Println("failed to delete command:", err)
-		}
-	}()
+	//defer func() {
+	//	if err := sess.ApplicationCommandDelete(appID, guildID, cmdHelp.ID); err != nil {
+	//		log.Println("failed to delete command:", err)
+	//	}
+	//}()
 
 	// Register /thresholds
 	cmdThresholds, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
@@ -476,11 +476,11 @@ func main() {
 		log.Fatalf("cannot create command thresholds: %v", err)
 	}
 	log.Printf("created command: %s (id=%s)", cmdThresholds.Name, cmdThresholds.ID)
-	defer func() {
-		if err := sess.ApplicationCommandDelete(appID, guildID, cmdThresholds.ID); err != nil {
-			log.Println("failed to delete command:", err)
-		}
-	}()
+	//defer func() {
+	//	if err := sess.ApplicationCommandDelete(appID, guildID, cmdThresholds.ID); err != nil {
+	//		log.Println("failed to delete command:", err)
+	//	}
+	//}()
 
 	// Register /ai
 	cmdAI, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
@@ -498,11 +498,11 @@ func main() {
 		log.Fatalf("cannot create command ai: %v", err)
 	}
 	log.Printf("created command: %s (id=%s)", cmdAI.Name, cmdAI.ID)
-	defer func() {
-		if err := sess.ApplicationCommandDelete(appID, guildID, cmdAI.ID); err != nil {
-			log.Println("failed to delete command ai:", err)
-		}
-	}()
+	//defer func() {
+	//	if err := sess.ApplicationCommandDelete(appID, guildID, cmdAI.ID); err != nil {
+	//		log.Println("failed to delete command ai:", err)
+	//	}
+	//}()
 
 	// Debug: list global application commands (helps verify what Discord has stored)
 	go func() {
