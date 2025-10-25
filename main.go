@@ -486,7 +486,8 @@ func main() {
 			{Type: discordgo.ApplicationCommandOptionString,
 				Name:        "image_url",
 				Description: "The Image URL to check",
-				Required:    true},
+				Required:    true,
+			},
 		},
 	})
 	if err != nil {
