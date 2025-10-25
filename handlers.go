@@ -46,13 +46,16 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "You don't have permission to manage roles."},
+			Data: &discordgo.InteractionResponseData{
+				Content: "You don't have permission to manage roles.",
+			},
 		})
 		return
 	}
 
 	// Defer to allow processing
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
 		log.Println("failed to defer permissions:", err)
 		return
 	}
@@ -81,8 +84,15 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		perms.AddRole(i.GuildID, roleID)
 		list := perms.ListRoles(i.GuildID)
 		val := FormatRoleList(s, i.GuildID, list)
-		embed := &discordgo.MessageEmbed{Title: "Permissions Updated", Description: "Added role.", Color: 0x2ECC71,
-			Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		embed := &discordgo.MessageEmbed{
+			Title:       "Permissions Updated",
+			Description: "Added role",
+			Color:       0x2ECC71,
+			Fields: []*discordgo.MessageEmbedField{{
+				Name:   "Allowed Roles",
+				Value:  val,
+				Inline: false}},
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 
 	case "remove":
@@ -100,15 +110,27 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		perms.RemoveRole(i.GuildID, roleID)
 		list := perms.ListRoles(i.GuildID)
 		val := FormatRoleList(s, i.GuildID, list)
-		embed := &discordgo.MessageEmbed{Title: "Permissions Updated", Description: "Removed role.", Color: 0xE74C3C,
-			Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		embed := &discordgo.MessageEmbed{
+			Title:       "Permissions Updated",
+			Description: "Removed role",
+			Color:       0xE74C3C,
+			Fields: []*discordgo.MessageEmbedField{{
+				Name:  "Allowed Roles",
+				Value: val, Inline: false}},
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 
 	case "list":
 		list := perms.ListRoles(i.GuildID)
 		val := FormatRoleList(s, i.GuildID, list)
-		embed := &discordgo.MessageEmbed{Title: "Permissions", Description: "Roles allowed to use restricted commands.", Color: 0x3498DB,
-			Fields: []*discordgo.MessageEmbedField{{Name: "Allowed Roles", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		embed := &discordgo.MessageEmbed{
+			Title:       "Permissions",
+			Description: "Roles allowed to use restricted commands",
+			Color:       0x3498DB,
+			Fields: []*discordgo.MessageEmbedField{{
+				Name:  "Allowed Roles",
+				Value: val, Inline: false}},
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 
 	default:
@@ -126,7 +148,8 @@ func handleAnalyse(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	if !perms.IsAllowedForRestricted(i) {
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."}})
+			Data: &discordgo.InteractionResponseData{
+				Content: "You don't have permission to use this command."}})
 		return
 	}
 	analyseCommandHandlerBody(s, i)
@@ -141,7 +164,8 @@ func handleAI(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	if !perms.IsAllowedForRestricted(i) {
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{Content: "You don't have permission to use this command."}})
+			Data: &discordgo.InteractionResponseData{
+				Content: "You don't have permission to use this command."}})
 		return
 	}
 	aiCommandHandlerBody(s, i)
@@ -162,9 +186,15 @@ func handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	rtt := time.Since(start)
 	gw := s.HeartbeatLatency()
 	embed := &discordgo.MessageEmbed{Title: "Pong!", Color: 0xFFC107,
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "Response time", Value: fmt.Sprintf("%d ms", rtt.Milliseconds()), Inline: true},
-			{Name: "Gateway latency", Value: fmt.Sprintf("%d ms", gw.Milliseconds()), Inline: true},
+		Fields: []*discordgo.MessageEmbedField{{
+			Name:   "Response time",
+			Value:  fmt.Sprintf("%d ms", rtt.Milliseconds()),
+			Inline: true,
+		},
+			{Name: "API latency",
+				Value:  fmt.Sprintf("%d ms", gw.Milliseconds()),
+				Inline: true,
+			},
 		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
