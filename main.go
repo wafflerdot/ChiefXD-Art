@@ -21,18 +21,29 @@ func main() {
 	_ = godotenv.Load()
 
 	// ----------------------------------------
-	// Permissions persistence (JSON-backed)
+	// Permissions persistence (DB or JSON fallback)
 	// ----------------------------------------
-	permsFile := os.Getenv("PERMS_FILE")
-	if permsFile == "" {
-		permsFile = "permissions.json"
-	}
-
-	perms.ConfigureFile(permsFile)
-	if err := perms.LoadFromFile(); err != nil {
-		log.Println("failed to load permissions file:", err)
+	dsn := os.Getenv("PERMS_DSN")
+	dialect := os.Getenv("PERMS_DIALECT") // postgres | mysql
+	if dsn != "" {
+		if dialect == "" {
+			dialect = "postgres"
+		}
+		if err := perms.ConfigureDB(dialect, dsn); err != nil {
+			log.Fatalf("permissions DB config failed: %v", err)
+		}
+		log.Printf("permissions: DB configured (dialect=%s)", dialect)
 	} else {
-		log.Println("permissions loaded from:", permsFile)
+		permsFile := os.Getenv("PERMS_FILE")
+		if permsFile == "" {
+			permsFile = "permissions.json"
+		}
+		perms.ConfigureFile(permsFile)
+		if err := perms.LoadFromFile(); err != nil {
+			log.Println("failed to load permissions file:", err)
+		} else {
+			log.Println("permissions loaded from:", permsFile)
+		}
 	}
 
 	// ----------------------------------------
@@ -74,13 +85,12 @@ func main() {
 	registerCommands(sess)
 
 	// ----------------------------------------
-	// Block until termination, then gracefully shutdown
+	// Block until termination, then graceful shutdown
 	// ----------------------------------------
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	// Graceful shutdown for HTTP server.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if httpServer != nil {

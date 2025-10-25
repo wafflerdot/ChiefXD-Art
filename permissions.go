@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,6 +12,8 @@ import (
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 // OwnerID is a constant fallback for the primary owner user ID.
@@ -22,15 +26,23 @@ const (
 	PermManageGuild   = 1 << 5 // 0x00000020
 )
 
-// PermStore keeps the list of allowed role IDs per guild, with optional JSON file persistence.
-// Users can run restricted commands if:
-// - They are the owner (OWNER_ID), or
-// - They have Administrator/Manage Guild permission, or
-// - They have at least one role that is in the allowed set for the guild.
+// Supported DB dialects
+const (
+	DialectPostgres = "postgres"
+	DialectMySQL    = "mysql"
+)
+
+// PermStore keeps the list of allowed role IDs per guild.
+// Backing storage:
+// - If db is configured, data is stored in a SQL table.
+// - Otherwise falls back to JSON file persistence.
 type PermStore struct {
 	mu         sync.RWMutex
-	guildRoles map[string]map[string]struct{} // guildID -> set(roleID)
-	filePath   string                         // optional JSON file for persistence
+	guildRoles map[string]map[string]struct{} // guildID -> set(roleID) (used for JSON fallback)
+	filePath   string                         // JSON file path (fallback)
+
+	db      *sql.DB
+	dialect string
 }
 
 func NewPermStore() *PermStore {
@@ -39,7 +51,50 @@ func NewPermStore() *PermStore {
 
 var perms = NewPermStore()
 
-// ConfigureFile sets the JSON file path used for persistence.
+// ConfigureDB connects to the database and ensures the permissions table exists.
+// dialect: "postgres" or "mysql"
+// dsn:     e.g., postgres:  postgres://user:pass@host:5432/db?sslmode=disable
+//
+//	mysql:     user:pass@tcp(host:3306)/db?parseTime=true
+func (ps *PermStore) ConfigureDB(dialect, dsn string) error {
+	db, err := sql.Open(dialect, dsn)
+	if err != nil {
+		return fmt.Errorf("open db: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("ping db: %w", err)
+	}
+
+	ps.db = db
+	ps.dialect = dialect
+
+	// Create table if not exists
+	var ddl string
+	switch dialect {
+	case DialectPostgres:
+		ddl = `CREATE TABLE IF NOT EXISTS permissions (
+			guild_id TEXT NOT NULL,
+			role_id  TEXT NOT NULL,
+			PRIMARY KEY (guild_id, role_id)
+		)`
+	case DialectMySQL:
+		ddl = `CREATE TABLE IF NOT EXISTS permissions (
+			guild_id VARCHAR(64) NOT NULL,
+			role_id  VARCHAR(64) NOT NULL,
+			PRIMARY KEY (guild_id, role_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+	default:
+		return fmt.Errorf("unsupported dialect: %s", dialect)
+	}
+	if _, err := db.Exec(ddl); err != nil {
+		return fmt.Errorf("create table: %w", err)
+	}
+	log.Printf("permissions: using %s database storage", dialect)
+	return nil
+}
+
+// ConfigureFile sets the JSON file path used for persistence (fallback mode).
 func (ps *PermStore) ConfigureFile(path string) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -48,6 +103,22 @@ func (ps *PermStore) ConfigureFile(path string) {
 
 // AddRole adds a role to the allowed set for a guild and persists.
 func (ps *PermStore) AddRole(guildID, roleID string) {
+	// DB-backed path
+	if ps.db != nil {
+		var sqlStmt string
+		switch ps.dialect {
+		case DialectPostgres:
+			sqlStmt = `INSERT INTO permissions (guild_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+		case DialectMySQL:
+			sqlStmt = `INSERT IGNORE INTO permissions (guild_id, role_id) VALUES (?, ?)`
+		}
+		if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
+			log.Println("permissions db insert error:", err)
+		}
+		return
+	}
+
+	// JSON fallback
 	ps.mu.Lock()
 	set := ps.guildRoles[guildID]
 	if set == nil {
@@ -57,8 +128,6 @@ func (ps *PermStore) AddRole(guildID, roleID string) {
 	set[roleID] = struct{}{}
 	path := ps.filePath
 	ps.mu.Unlock()
-
-	// Persist outside the lock
 	if path != "" {
 		if err := ps.SaveToFile(); err != nil {
 			log.Println("permissions save (add) error:", err)
@@ -68,6 +137,22 @@ func (ps *PermStore) AddRole(guildID, roleID string) {
 
 // RemoveRole removes a role from the allowed set for a guild and persists.
 func (ps *PermStore) RemoveRole(guildID, roleID string) {
+	// DB-backed path
+	if ps.db != nil {
+		var sqlStmt string
+		switch ps.dialect {
+		case DialectPostgres:
+			sqlStmt = `DELETE FROM permissions WHERE guild_id = $1 AND role_id = $2`
+		case DialectMySQL:
+			sqlStmt = `DELETE FROM permissions WHERE guild_id = ? AND role_id = ?`
+		}
+		if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
+			log.Println("permissions db delete error:", err)
+		}
+		return
+	}
+
+	// JSON fallback
 	ps.mu.Lock()
 	if set := ps.guildRoles[guildID]; set != nil {
 		delete(set, roleID)
@@ -77,8 +162,6 @@ func (ps *PermStore) RemoveRole(guildID, roleID string) {
 	}
 	path := ps.filePath
 	ps.mu.Unlock()
-
-	// Persist outside the lock
 	if path != "" {
 		if err := ps.SaveToFile(); err != nil {
 			log.Println("permissions save (remove) error:", err)
@@ -88,6 +171,36 @@ func (ps *PermStore) RemoveRole(guildID, roleID string) {
 
 // ListRoles returns a copy of the allowed role IDs for a guild.
 func (ps *PermStore) ListRoles(guildID string) []string {
+	// DB-backed path
+	if ps.db != nil {
+		var (
+			rows *sql.Rows
+			err  error
+		)
+		switch ps.dialect {
+		case DialectPostgres:
+			rows, err = ps.db.Query(`SELECT role_id FROM permissions WHERE guild_id = $1`, guildID)
+		case DialectMySQL:
+			rows, err = ps.db.Query(`SELECT role_id FROM permissions WHERE guild_id = ?`, guildID)
+		}
+		if err != nil {
+			log.Println("permissions db list error:", err)
+			return nil
+		}
+		defer rows.Close()
+		out := make([]string, 0, 8)
+		for rows.Next() {
+			var roleID string
+			if err := rows.Scan(&roleID); err != nil {
+				log.Println("permissions db scan error:", err)
+				continue
+			}
+			out = append(out, roleID)
+		}
+		return out
+	}
+
+	// JSON fallback
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 	set := ps.guildRoles[guildID]
@@ -143,14 +256,16 @@ func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool
 		return false
 	}
 
-	ps.mu.RLock()
-	defer ps.mu.RUnlock()
-	allowed := ps.guildRoles[i.GuildID]
+	allowed := ps.ListRoles(i.GuildID) // uses DB if configured
 	if len(allowed) == 0 {
 		return false
 	}
+	set := make(map[string]struct{}, len(allowed))
+	for _, r := range allowed {
+		set[r] = struct{}{}
+	}
 	for _, r := range userRoles {
-		if _, ok := allowed[r]; ok {
+		if _, ok := set[r]; ok {
 			return true
 		}
 	}
@@ -177,7 +292,7 @@ func FormatRoleList(_ *discordgo.Session, _ string, roleIDs []string) string {
 	return strings.Join(mentions, ", ")
 }
 
-// JSON persistence
+// JSON persistence (fallback)
 
 type permJSON struct {
 	GuildRoles map[string][]string `json:"guild_roles"`
@@ -186,7 +301,7 @@ type permJSON struct {
 // SaveToFile writes the current permissions to disk in JSON format with an atomic rename.
 func (ps *PermStore) SaveToFile() error {
 	ps.mu.RLock()
-	if ps.filePath == "" {
+	if ps.filePath == "" || ps.db != nil {
 		ps.mu.RUnlock()
 		return nil
 	}
@@ -226,7 +341,7 @@ func (ps *PermStore) SaveToFile() error {
 func (ps *PermStore) LoadFromFile() error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	if ps.filePath == "" {
+	if ps.filePath == "" || ps.db != nil {
 		return nil
 	}
 

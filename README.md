@@ -1,6 +1,6 @@
 # ChiefXD Art Discord Bot (Go)
 
-A Discord bot written in Go that analyses images using Sightengine, with standard and advanced outputs, a role-based permissions system with JSON persistence, and Cloud Run–friendly health checks.
+A Discord bot written in Go that analyses images using Sightengine, with standard and advanced outputs, a role-based permissions system with DB or JSON persistence, and Cloud Run–friendly health checks.
 
 ## Features
 - Image analysis via Sightengine
@@ -8,7 +8,7 @@ A Discord bot written in Go that analyses images using Sightengine, with standar
   - Advanced mode with category/subcategory score breakdown
   - AI-only analysis command
 - Role-based permissions per guild (owner/admin override)
-  - JSON-backed database of moderator roles per server
+  - DB-backed (PostgreSQL/MySQL) or JSON-backed whitelist of moderator roles per server
   - Manage via `/permissions` command (add/remove/list)
 - Slash commands registered globally by default or per-server when `GUILD_ID` is set
 - Health endpoints for Cloud Run (`/`, `/healthz`)
@@ -44,9 +44,22 @@ Set the following environment variables (can be in a local `.env` file loaded at
 - `SIGHTENGINE_USER` (required): Sightengine API user
 - `SIGHTENGINE_SECRET` (required): Sightengine API secret
 - `OWNER_ID` (recommended): Your Discord user ID (owner override)
-- `GUILD_ID` (optional): If set, commands register instantly for that guild upon startup and commands will not be available globally (dev use only); if empty, commands register globally (may take up to ~1 hour to propagate, production mode)
-- `PERMS_FILE` (optional): JSON file path for role whitelist persistence (default: `permissions.json`)
+- `GUILD_ID` (optional): If set, commands register for that guild; otherwise they register globally
 - `PORT` (optional): HTTP port for health server (default: `8080`)
+
+Permissions storage:
+- DB-backed (recommended for production):
+  - `PERMS_DSN`: database connection string
+  - `PERMS_DIALECT`: `postgres` (default) or `mysql`
+
+  Examples:
+  - Postgres: `PERMS_DSN=postgres://user:pass@host:5432/db?sslmode=disable`
+  - MySQL:    `PERMS_DSN=user:pass@tcp(host:3306)/db?parseTime=true`
+
+  On first start, the bot will create a table named `permissions` with primary key `(guild_id, role_id)`.
+
+- JSON-backed (fallback for dev/small deployments):
+  - `PERMS_FILE` (default: `permissions.json`)
 
 Thresholds are defined in `analysis.go` - default values:
 - Nudity (Suggestive): 0.75
@@ -82,6 +95,7 @@ The bot logs every created command and later lists the commands that Discord rep
 - The bot starts an HTTP server on `PORT` (default `8080`) and responds `ok` on `/` and `/healthz`.
 - Use the provided `Dockerfile` to containerise.
 - For persistent role whitelists across revisions, point `PERMS_FILE` to a writable, persistent path (for example, a mounted volume). Ephemeral container filesystems may not persist across deployments.
+- For DB-backed permissions, use a managed Postgres/MySQL (e.g., Cloud SQL) and provide `PERMS_DSN`
 
 ## Troubleshooting
 - Commands don’t show up
@@ -94,22 +108,27 @@ The bot logs every created command and later lists the commands that Discord rep
   - The bot starts an HTTP server on `PORT` with `/` and `/healthz`; ensure `PORT` is set by the platform (Cloud Run sets `PORT` automatically)
 - Sightengine errors
   - Confirm `SIGHTENGINE_USER` and `SIGHTENGINE_SECRET` are set and valid
+- DB errors
+  - Ensure `PERMS_DSN` is correct and reachable; check logs for table creation and queries
 
 ## Project Structure
-- `main.go`: bootstrap, env, permissions load, start HTTP server, wire handlers, open session, register commands
+- `main.go`: bootstrap, persistence wiring (DB or JSON), session, handlers, registration, shutdown
 - `http_server.go`: minimal HTTP health server
 - `handlers.go`: slash command handlers
 - `register.go`: command registration
-- `permissions.go`: role whitelist store + JSON persistence
-- `analysis.go`: thresholds, result shaping, advanced category extraction
+- `permissions.go`: role allowlist store + DB/JSON persistence
+- `analysis.go`: thresholds and scoring logic
 - `sightengine.go`: API calls to Sightengine
-- `rich_presence.go`: sets Discord rich presence
+- `rich_presence.go`: Discord rich presence
 - `Dockerfile`: container build
 
+## Choosing a database
+- PostgreSQL is generally preferred for consistency and richer SQL features
+- MySQL is also supported and may be preferable in environments where MySQL expertise/tooling already exists
+
 ## Security
+- Use secret managers or Cloud Run secrets for credentials
 - Keep secrets out of version control; use Cloud Run secrets or environment variables
 - If a token has been exposed, rotate it immediately
-
 ## Licence
 - All rights reserved
-
