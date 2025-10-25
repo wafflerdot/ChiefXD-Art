@@ -468,7 +468,7 @@ func main() {
 				},
 				{
 					Name:   "/permissions",
-					Value:  "Manage who can use restricted commands",
+					Value:  "Manage which roles can use moderator-only commands",
 					Inline: false,
 				},
 			},
@@ -614,23 +614,23 @@ func main() {
 	}
 	log.Printf("created command: %s (id=%s)", cmdAI.Name, cmdAI.ID)
 
-	// Register /permissions command (with subcommands)
+	// Register /permissions add|remove|list
 	_, err = sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "permissions",
-		Description: "Manage who can use restricted commands",
+		Description: "Manage roles allowed to use moderator-only commands",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "add",
-				Description: "Add a role allowed to use restricted commands",
+				Description: "Add a moderator role allowed to use moderator-only commands",
 				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "Role to allow", Required: true},
+					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "Role to add", Required: true},
 				},
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "remove",
-				Description: "Remove a role from the allowed list",
+				Description: "Remove a moderator role",
 				Options: []*discordgo.ApplicationCommandOption{
 					{Type: discordgo.ApplicationCommandOptionRole, Name: "role", Description: "Role to remove", Required: true},
 				},
@@ -638,7 +638,7 @@ func main() {
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "list",
-				Description: "List roles allowed to use restricted commands",
+				Description: "List moderator roles allowed to use restricted commands",
 			},
 		},
 	})
