@@ -16,6 +16,7 @@ A Discord bot written in Go that analyses images using Sightengine, with standar
   - DB-backed (Postgres or MySQL) — recommended for production (permissions + per-guild thresholds + history)
   - JSON-backed local files — convenient for development
 - Cloud Run friendly: health endpoints, PORT usage, containerised via `Dockerfile`
+- Reverse image search integration (google-reverse-image-api): POST-only client with simple, structured output ready for embeds
 
 ## Slash Commands
 - `/analyse image_url:<URL> [advanced:boolean]`
@@ -23,6 +24,8 @@ A Discord bot written in Go that analyses images using Sightengine, with standar
   - If `advanced=true`: the bot returns a full score breakdown (category → subcategory → percent). Advanced output does NOT include an `Allowed` verdict.
 - `/ai image_url:<URL>`
   - Runs only the AI (genAI) model and returns the AI score and an `Allowed` verdict computed via the guild's AI threshold.
+- `/reverse image_url:<URL>`
+  - Performs a reverse image search via google-reverse-image-api and returns a concise result (success flag, result text, and a "Similar Results" Google Images URL) in an embed.
 - `/thresholds` (subcommands)
   - `/thresholds list` — shows the current thresholds for the server (guild-scoped values)
   - `/thresholds set name:<NuditySuggestive|NudityExplicit|Offensive|AIGenerated> value:<0.00–1.00 or percent>` — owner/admin only; stores the threshold for the current guild
@@ -70,6 +73,12 @@ Permissions/DB:
 - `PERMS_DSN` — database connection string when using DB
 - `PERMS_FILE` — path to JSON file for JSON-backed permissions storage (dev)
 
+Reverse image API:
+- `REVERSE_API_URL` — full POST endpoint to the reverse API (e.g., `https://google-reverse-image-api.vercel.app/reverse`)
+- or `REVERSE_API_BASE` — base URL (the client will POST to `BASE/reverse` if `REVERSE_API_URL` is not set)
+- `REVERSE_API_KEY` — optional bearer token for deployments requiring auth
+- `REVERSE_API_TIMEOUT` — optional request timeout in seconds (default 30)
+
 Notes about the dev toggle: leaving `GUILD_ID` empty registers commands globally (slow propagation). Setting `GUILD_ID` makes registration guild-scoped and instant — useful for development.
 
 ## Running locally
@@ -114,6 +123,8 @@ The process starts an HTTP server for health checks and the Discord gateway sess
   - Confirm `SIGHTENGINE_USER` and `SIGHTENGINE_SECRET` are set and valid.
 - DB errors:
   - Verify `PERMS_DSN` is reachable and credentials are correct. The bot attempts to create required tables on startup.
+- Reverse API errors:
+  - Verify `REVERSE_API_URL` or `REVERSE_API_BASE` is set correctly and that the endpoint accepts POST with `{ "imageUrl": "..." }`.
 
 ## Project layout
 - `main.go` — bootstrap + wiring
@@ -121,6 +132,8 @@ The process starts an HTTP server for health checks and the Discord gateway sess
 - `register.go` — command registration logic
 - `analysis.go` — scoring logic
 - `sightengine.go` — Sightengine API calls
+- `reverse_api.go` — google-reverse-image-api client (POST-only)
+- `reverse_parse.go` — normalisation helpers for reverse API responses
 - `permissions.go` — role whitelist store (DB/JSON)
 - `thresholds.go` — per-guild thresholds and history, including stores
 - `http_server.go` — health endpoints
