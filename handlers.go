@@ -44,6 +44,9 @@ func registerHandlers(sess *discordgo.Session) {
 
 	// /thresholds
 	sess.AddHandler(handleThresholds)
+
+	// /reverse
+	sess.AddHandler(handleReverse)
 }
 
 // -------------------------
@@ -179,6 +182,52 @@ func handleAI(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 // -------------------------
+// /reverse
+// -------------------------
+func handleReverse(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "reverse" {
+		return
+	}
+	if !perms.IsAllowedForRestricted(i) {
+		_ = respondEphemeral(s, i, "You don't have permission to use this command.")
+		return
+	}
+	var imageURL string
+	for _, opt := range i.ApplicationCommandData().Options {
+		if opt.Name == "image_url" {
+			imageURL = opt.StringValue()
+		}
+	}
+	if imageURL == "" {
+		_ = respondEphemeral(s, i, "Missing `image_url`.")
+		return
+	}
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
+		log.Println("failed to defer reverse interaction:", err)
+		return
+	}
+	res, err := ReverseLookup(imageURL)
+	if err != nil {
+		msg := fmt.Sprintf("Reverse image search failed: %v", err)
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+		return
+	}
+	color := 0x607D8B
+	desc := fmt.Sprintf("Reverse image search for: %s", imageURL)
+	fields := []*discordgo.MessageEmbedField{
+		{Name: "Success", Value: fmt.Sprintf("%t", res.Success), Inline: true},
+	}
+	if res.ResultText != "" {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "Result", Value: res.ResultText, Inline: false})
+	}
+	if res.SimilarURL != "" {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: "Similar Results", Value: res.SimilarURL, Inline: false})
+	}
+	embed := &discordgo.MessageEmbed{Title: "Reverse Image Search", Description: desc, Color: color, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+}
+
+// -------------------------
 // /ping
 // -------------------------
 func handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -224,6 +273,7 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			{Name: "/help", Value: "Shows this message", Inline: false},
 			{Name: "/permissions", Value: "Manage which roles can use moderator-only commands (owner/admin only)", Inline: false},
 			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
+			{Name: "/reverse", Value: "Performs a reverse image search on an Image URL\nArguments: `image_url` (required)", Inline: false},
 			{Name: "/thresholds", Value: "Shows or modifies detection thresholds\nSubcommands:\n- `list`: View current thresholds\n- `history [limit] [threshold]`: View recent changes\n- `set <Threshold> <Value>`: Modify a detection threshold (owner/admin only)\n- `reset <Threshold|all>`: Resets a threshold to its default value (owner/admin only)", Inline: false},
 		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})

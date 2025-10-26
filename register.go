@@ -29,13 +29,13 @@ func registerCommands(sess *discordgo.Session) {
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
 			Description: "The Image URL to analyse",
-			Required:    true},
-			{
-				Type:        discordgo.ApplicationCommandOptionBoolean,
-				Name:        "advanced",
-				Description: "Advanced mode, shows more detailed results",
-				Required:    false},
-		},
+			Required:    true,
+		}, {
+			Type:        discordgo.ApplicationCommandOptionBoolean,
+			Name:        "advanced",
+			Description: "Advanced mode, shows more detailed results",
+			Required:    false,
+		}},
 	}); err != nil {
 		log.Fatalf("cannot create command analyse: %v", err)
 	} else {
@@ -109,7 +109,8 @@ func registerCommands(sess *discordgo.Session) {
 							{Name: "AIGenerated", Value: "AIGenerated"},
 						},
 					},
-				}},
+				},
+			},
 		},
 	}); err != nil {
 		log.Fatalf("cannot create command thresholds: %v", err)
@@ -127,10 +128,28 @@ func registerCommands(sess *discordgo.Session) {
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
 			Description: "The Image URL to check",
-			Required:    true},
-		},
+			Required:    true,
+		}},
 	}); err != nil {
 		log.Fatalf("cannot create command ai: %v", err)
+	} else {
+		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
+	}
+
+	// ----------------------------------------
+	// /reverse
+	// ----------------------------------------
+	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "reverse",
+		Description: "Performs a reverse image search on an Image URL",
+		Options: []*discordgo.ApplicationCommandOption{{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "image_url",
+			Description: "The Image URL to check",
+			Required:    true,
+		}},
+	}); err != nil {
+		log.Fatalf("cannot create command reverse: %v", err)
 	} else {
 		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
 	}
@@ -150,7 +169,8 @@ func registerCommands(sess *discordgo.Session) {
 					Type:        discordgo.ApplicationCommandOptionRole,
 					Name:        "role",
 					Description: "Role to add",
-					Required:    true}}},
+					Required:    true,
+				}}},
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "remove",
@@ -159,11 +179,13 @@ func registerCommands(sess *discordgo.Session) {
 					Type:        discordgo.ApplicationCommandOptionRole,
 					Name:        "role",
 					Description: "Role to remove",
-					Required:    true}}},
+					Required:    true,
+				}}},
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "list",
-				Description: "List moderator roles allowed to use restricted commands"},
+				Description: "List moderator roles allowed to use restricted commands",
+			},
 		},
 	}); err != nil {
 		log.Fatalf("cannot create command permissions: %v", err)
