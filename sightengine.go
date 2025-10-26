@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"time"
 )
 
 // sightengine calls the Sightengine API with the full model set used by standard/advanced analysis
@@ -31,8 +30,7 @@ func sightengine(imageLink string) (map[string]any, error) {
 	}
 	u.RawQuery = params.Encode()
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(u.String())
+	resp, err := sharedHTTPClient.Get(u.String())
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -74,8 +72,7 @@ func sightengineAIOnly(imageLink string) (map[string]any, error) {
 	}
 	u.RawQuery = params.Encode()
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(u.String())
+	resp, err := sharedHTTPClient.Get(u.String())
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}

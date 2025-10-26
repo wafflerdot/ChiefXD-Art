@@ -50,7 +50,7 @@ func NewReverseAPIClient() (*ReverseAPIClient, error) {
 	return &ReverseAPIClient{
 		Endpoint: endpoint,
 		APIKey:   os.Getenv("REVERSE_API_KEY"),
-		Client:   &http.Client{Timeout: to},
+		Client:   newHTTPClientWithTimeout(to),
 	}, nil
 }
 
