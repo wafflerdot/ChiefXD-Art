@@ -383,7 +383,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 		// Parse value: allow percent like 70% or 0.70
 		for _, opt := range sub.Options {
-			if opt.Name == "name" {
+			if opt.Name == "threshold" {
 				name = strings.TrimSpace(opt.StringValue())
 			}
 			if opt.Name == "value" {
@@ -420,7 +420,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	case "reset":
 		var name string
 		for _, opt := range sub.Options {
-			if opt.Name == "name" {
+			if opt.Name == "threshold" {
 				name = strings.TrimSpace(opt.StringValue())
 			}
 		}
