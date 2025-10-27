@@ -16,8 +16,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// OwnerID is a constant fallback for the primary owner user ID.
-// You can also set OWNER_ID environment variable to override this at runtime.
+// OwnerID is a constant fallback for the primary owner user ID
+// OWNER_ID environment variable will override this at runtime
 const OwnerID = "757284149793914900"
 
 // Permission bit flags (subset used)
@@ -32,10 +32,10 @@ const (
 	DialectMySQL    = "mysql"
 )
 
-// PermStore keeps the list of allowed role IDs per guild.
+// PermStore keeps the list of allowed role IDs per guild
 // Backing storage:
-// - If db is configured, data is stored in a SQL table.
-// - Otherwise falls back to JSON file persistence.
+// - If db is configured, data is stored in a SQL table
+// - Otherwise falls back to JSON file persistence
 type PermStore struct {
 	mu         sync.RWMutex
 	guildRoles map[string]map[string]struct{} // guildID -> set(roleID) (used for JSON fallback)
@@ -51,11 +51,8 @@ func NewPermStore() *PermStore {
 
 var perms = NewPermStore()
 
-// ConfigureDB connects to the database and ensures the permissions table exists.
+// ConfigureDB connects to the database and ensures the permissions table exists
 // dialect: "postgres" or "mysql"
-// dsn:     e.g., postgres:  postgres://user:pass@host:5432/db?sslmode=disable
-//
-//	mysql:     user:pass@tcp(host:3306)/db?parseTime=true
 func (ps *PermStore) ConfigureDB(dialect, dsn string) error {
 	db, err := sql.Open(dialect, dsn)
 	if err != nil {
@@ -94,14 +91,14 @@ func (ps *PermStore) ConfigureDB(dialect, dsn string) error {
 	return nil
 }
 
-// ConfigureFile sets the JSON file path used for persistence (fallback mode).
+// ConfigureFile sets the JSON file path used for persistence (fallback mode)
 func (ps *PermStore) ConfigureFile(path string) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	ps.filePath = path
 }
 
-// AddRole adds a role to the allowed set for a guild and persists.
+// AddRole adds a role to the allowed set for a guild and persists
 func (ps *PermStore) AddRole(guildID, roleID string) {
 	// DB-backed path
 	if ps.db != nil {
@@ -135,7 +132,7 @@ func (ps *PermStore) AddRole(guildID, roleID string) {
 	}
 }
 
-// RemoveRole removes a role from the allowed set for a guild and persists.
+// RemoveRole removes a role from the allowed set for a guild and persists
 func (ps *PermStore) RemoveRole(guildID, roleID string) {
 	// DB-backed path
 	if ps.db != nil {
@@ -169,7 +166,7 @@ func (ps *PermStore) RemoveRole(guildID, roleID string) {
 	}
 }
 
-// ListRoles returns a copy of the allowed role IDs for a guild.
+// ListRoles returns a copy of the allowed role IDs for a guild
 func (ps *PermStore) ListRoles(guildID string) []string {
 	// DB-backed path
 	if ps.db != nil {
@@ -212,7 +209,7 @@ func (ps *PermStore) ListRoles(guildID string) []string {
 	return out
 }
 
-// IsOwner returns true if the user is the configured owner.
+// IsOwner returns true if the user is the configured owner
 func IsOwner(userID string) bool {
 	if env := strings.TrimSpace(os.Getenv("OWNER_ID")); env != "" {
 		return userID == env
@@ -220,7 +217,7 @@ func IsOwner(userID string) bool {
 	return userID == OwnerID
 }
 
-// HasAdminContextPermission returns true if the interaction member has Administrator or Manage Guild.
+// HasAdminContextPermission returns true if the interaction member has Administrator or Manage Guild permissions
 func HasAdminContextPermission(i *discordgo.InteractionCreate) bool {
 	if i.Member == nil {
 		return false
@@ -229,7 +226,7 @@ func HasAdminContextPermission(i *discordgo.InteractionCreate) bool {
 	return (permsVal&PermAdministrator) != 0 || (permsVal&PermManageGuild) != 0
 }
 
-// IsAllowedForRestricted checks whether the invoking user can access restricted commands in a guild.
+// IsAllowedForRestricted checks whether the invoking user can access restricted commands in a guild
 func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool {
 	// DMs: allow only owner
 	if i.GuildID == "" {
@@ -272,7 +269,7 @@ func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool
 	return false
 }
 
-// FormatRoleList turns role IDs into a human-readable list as Discord mentions.
+// FormatRoleList turns role IDs into a human-readable list as Discord mentions
 // Example: <@&123>, <@&456>
 func FormatRoleList(_ *discordgo.Session, _ string, roleIDs []string) string {
 	if len(roleIDs) == 0 {
@@ -298,7 +295,7 @@ type permJSON struct {
 	GuildRoles map[string][]string `json:"guild_roles"`
 }
 
-// SaveToFile writes the current permissions to disk in JSON format with an atomic rename.
+// SaveToFile writes the current permissions to disk in JSON format with an atomic rename
 func (ps *PermStore) SaveToFile() error {
 	ps.mu.RLock()
 	if ps.filePath == "" || ps.db != nil {
@@ -337,7 +334,7 @@ func (ps *PermStore) SaveToFile() error {
 	return os.Rename(tmp, path)
 }
 
-// LoadFromFile populates the permissions from a JSON file if it exists.
+// LoadFromFile populates the permissions from a JSON file if it exists
 func (ps *PermStore) LoadFromFile() error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()

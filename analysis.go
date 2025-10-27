@@ -1,6 +1,6 @@
 package main
 
-// Default thresholds (kept constant, used to reset)
+// Default thresholds
 const (
 	DefaultNuditySuggestiveThreshold = 0.75
 	DefaultNudityExplicitThreshold   = 0.25
@@ -30,7 +30,7 @@ type Analysis struct {
 
 // AdvancedAnalysis captures all numeric sub‑scores by category
 type AdvancedAnalysis struct {
-	Categories map[string]map[string]float64 // e.g., "nudity" -> {"none":0.95, "suggestive":0.02, ...}
+	Categories map[string]map[string]float64 // e.g. "nudity" -> {"none":0.95, "suggestive":0.02, ...}
 	MediaURI   string
 }
 

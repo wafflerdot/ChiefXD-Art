@@ -8,7 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// registerCommands creates the slash commands either globally or guild-scoped.
+// registerCommands creates the slash commands either globally or guild-scoped
 func registerCommands(sess *discordgo.Session) {
 	appID := sess.State.User.ID
 	guildID := os.Getenv("GUILD_ID")
@@ -67,7 +67,7 @@ func registerCommands(sess *discordgo.Session) {
 	}
 
 	// ----------------------------------------
-	// /thresholds (list | set | reset | history)
+	// /thresholds [list | set | reset | history]
 	// ----------------------------------------
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "thresholds",

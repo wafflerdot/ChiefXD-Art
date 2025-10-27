@@ -17,7 +17,7 @@ const (
 )
 
 func main() {
-	// Load environment variables from .env if present
+	// Load environment variables from .env
 	_ = godotenv.Load()
 
 	// ----------------------------------------
@@ -46,7 +46,7 @@ func main() {
 		}
 	}
 
-	// Initialize thresholds store and load values from DB if present
+	// Initialise thresholds store and load values from DB if present
 	if err := thresholdsStore.Init(perms); err != nil {
 		log.Println("thresholds init error:", err)
 	}

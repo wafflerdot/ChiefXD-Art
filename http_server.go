@@ -9,7 +9,7 @@ import (
 
 var httpServer *http.Server
 
-// startHTTPServer starts a minimal HTTP server for Cloud Run health/readiness.
+// startHTTPServer starts a minimal HTTP server
 func startHTTPServer() {
 	// Resolve port (default 8080 for Cloud Run)
 	port := os.Getenv("PORT")

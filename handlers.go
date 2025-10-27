@@ -11,7 +11,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// respondEphemeral sends an ephemeral message visible only to the invoking user.
+// respondEphemeral sends an ephemeral message visible only to the invoking user
 func respondEphemeral(s *discordgo.Session, i *discordgo.InteractionCreate, content string) error {
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -22,18 +22,18 @@ func respondEphemeral(s *discordgo.Session, i *discordgo.InteractionCreate, cont
 	})
 }
 
-// registerHandlers wires all slash command handlers onto the session.
+// registerHandlers wires all slash command handlers onto the session
 func registerHandlers(sess *discordgo.Session) {
 	// Apply Rich Presence on READY
 	sess.AddHandler(onReadySetPresence)
 
-	// /permissions add|remove|list
+	// /permissions <add|remove|list>
 	sess.AddHandler(handlePermissions)
 
-	// /analyse
+	// /analyse <image_url> [advanced]
 	sess.AddHandler(handleAnalyse)
 
-	// /ai
+	// /ai <image_url>
 	sess.AddHandler(handleAI)
 
 	// /ping
@@ -42,10 +42,10 @@ func registerHandlers(sess *discordgo.Session) {
 	// /help
 	sess.AddHandler(handleHelp)
 
-	// /thresholds
+	// /thresholds [list|history|set|reset]
 	sess.AddHandler(handleThresholds)
 
-	// /reverse
+	// /reverse <image_url>
 	sess.AddHandler(handleReverse)
 }
 
@@ -72,7 +72,6 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	sub := data.Options[0]
 	switch sub.Name {
 	case "add", "remove", "list":
-		// valid, proceed
 	default:
 		_ = respondEphemeral(s, i, "Unknown subcommand.")
 		return

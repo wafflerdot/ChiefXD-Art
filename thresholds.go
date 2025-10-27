@@ -21,7 +21,7 @@ type ThresholdsStore struct{}
 
 var thresholdsStore = &ThresholdsStore{}
 
-// Init creates the thresholds table if DB is available and loads current values.
+// Init creates the thresholds table if DB is available and loads current values
 func (ts *ThresholdsStore) Init(ps *PermStore) error {
 	if ps == nil || ps.db == nil {
 		return nil
@@ -75,7 +75,7 @@ func (ts *ThresholdsStore) Init(ps *PermStore) error {
 	return ts.Load(ps)
 }
 
-// Load reads thresholds from DB and applies them to active globals.
+// Load reads thresholds from DB and applies them to active globals
 func (ts *ThresholdsStore) Load(ps *PermStore) error {
 	if ps == nil || ps.db == nil {
 		return nil
@@ -106,7 +106,7 @@ func (ts *ThresholdsStore) Load(ps *PermStore) error {
 	return nil
 }
 
-// Set updates a single threshold in DB (and memory). value must be between 0 and 1.
+// Set updates a single threshold in DB (and memory). value must be between 0 and 1
 func (ts *ThresholdsStore) Set(ps *PermStore, name string, value float64) error {
 	// update memory
 	switch name {
@@ -137,7 +137,7 @@ func (ts *ThresholdsStore) Set(ps *PermStore, name string, value float64) error 
 	return err
 }
 
-// ResetOne resets a single threshold to default and persists.
+// ResetOne resets a single threshold to default and persists
 func (ts *ThresholdsStore) ResetOne(ps *PermStore, name string) error {
 	var def float64
 	switch name {
@@ -155,7 +155,7 @@ func (ts *ThresholdsStore) ResetOne(ps *PermStore, name string) error {
 	return ts.Set(ps, name, def)
 }
 
-// ResetAll resets all thresholds to their default values and persists if DB.
+// ResetAll resets all thresholds to their default values and persists if DB
 func (ts *ThresholdsStore) ResetAll(ps *PermStore) error {
 	if err := ts.Set(ps, "NuditySuggestive", DefaultNuditySuggestiveThreshold); err != nil {
 		return err
@@ -172,7 +172,7 @@ func (ts *ThresholdsStore) ResetAll(ps *PermStore) error {
 	return nil
 }
 
-// ThresholdChange represents an audit log entry for a set/reset operation.
+// ThresholdChange represents an audit log entry for a set/reset operation
 type ThresholdChange struct {
 	Name     string
 	OldValue sql.NullFloat64
@@ -182,7 +182,7 @@ type ThresholdChange struct {
 	Created  time.Time
 }
 
-// LogChange writes an audit record; no-op when DB is not configured.
+// LogChange writes an audit record; no-op when DB is not configured
 func (ts *ThresholdsStore) LogChange(ps *PermStore, name string, oldVal, newVal float64, userID, guildID string) error {
 	if ps == nil || ps.db == nil {
 		return nil
@@ -198,7 +198,7 @@ func (ts *ThresholdsStore) LogChange(ps *PermStore, name string, oldVal, newVal 
 	return err
 }
 
-// History returns last N threshold changes ordered by newest first; empty when DB not configured.
+// History returns last N threshold changes ordered by newest first; empty when DB not configured
 func (ts *ThresholdsStore) History(ps *PermStore, limit int) ([]ThresholdChange, error) {
 	changes := []ThresholdChange{}
 	if ps == nil || ps.db == nil {
@@ -232,7 +232,7 @@ func (ts *ThresholdsStore) History(ps *PermStore, limit int) ([]ThresholdChange,
 	return changes, nil
 }
 
-// HistoryFiltered returns last N changes for a specific threshold name.
+// HistoryFiltered returns last N changes for a specific threshold name
 func (ts *ThresholdsStore) HistoryFiltered(ps *PermStore, name string, limit int) ([]ThresholdChange, error) {
 	changes := []ThresholdChange{}
 	if ps == nil || ps.db == nil {
@@ -326,8 +326,8 @@ func (ts *ThresholdsStore) GetGuildThresholds(ps *PermStore, guildID string) (fl
 			}
 		}
 	}
-	// fallback to global table for any values still default (optional)
-	// we won’t override guild values; only fill from global thresholds table if value equals default and a global override exists
+	// Fallback to global table for any values still default (optional)
+	// We won’t override guild values; only fill from global thresholds table if value equals default and a global override exists
 	glob, err := ps.db.Query(`SELECT name, value FROM thresholds`)
 	if err == nil {
 		defer glob.Close()
@@ -504,7 +504,7 @@ func defaultThresholdValue(name string) float64 {
 	}
 }
 
-// helper: dialect param placeholders
+// Helper: dialect param placeholders
 func (ts *ThresholdsStore) param(ps *PermStore, idx int) string {
 	if ps.dialect == DialectPostgres {
 		return fmt.Sprintf("$%d", idx)

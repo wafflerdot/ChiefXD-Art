@@ -28,7 +28,7 @@ type ReverseAPIClient struct {
 	Client   *http.Client
 }
 
-// NewReverseAPIClient builds a client from environment variables.
+// NewReverseAPIClient builds a client from environment variables
 func NewReverseAPIClient() (*ReverseAPIClient, error) {
 	endpoint := strings.TrimSpace(os.Getenv("REVERSE_API_URL"))
 	if endpoint == "" {
@@ -84,7 +84,7 @@ func (c *ReverseAPIClient) ReverseSearch(imageURL string) (map[string]any, error
 	return data, nil
 }
 
-// postJSON performs a POST with JSON payload and decodes JSON response into a generic map.
+// postJSON performs a POST with JSON payload and decodes JSON response into a generic map
 func (c *ReverseAPIClient) postJSON(u string, payload map[string]any) (map[string]any, int, error) {
 	b, err := json.Marshal(payload)
 	if err != nil {
