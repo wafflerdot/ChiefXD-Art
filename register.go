@@ -83,7 +83,18 @@ func registerCommands(sess *discordgo.Session) {
 				Name:        "set",
 				Description: "Set a threshold (0.00-1.00 or a percentage like 70%)",
 				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionString, Name: "threshold", Description: "NuditySuggestive, NudityExplicit, Offensive, AIGenerated", Required: true},
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "threshold",
+						Description: "Select which threshold to set",
+						Required:    true,
+						Choices: []*discordgo.ApplicationCommandOptionChoice{
+							{Name: "NuditySuggestive", Value: "NuditySuggestive"},
+							{Name: "NudityExplicit", Value: "NudityExplicit"},
+							{Name: "Offensive", Value: "Offensive"},
+							{Name: "AIGenerated", Value: "AIGenerated"},
+						},
+					},
 					{Type: discordgo.ApplicationCommandOptionString, Name: "value", Description: "Decimal (0.00-1.00) or percentage (0-100%)", Required: true},
 				},
 			},
@@ -92,7 +103,19 @@ func registerCommands(sess *discordgo.Session) {
 				Name:        "reset",
 				Description: "Reset thresholds to default (one or all)",
 				Options: []*discordgo.ApplicationCommandOption{
-					{Type: discordgo.ApplicationCommandOptionString, Name: "threshold", Description: "NuditySuggestive, NudityExplicit, Offensive, AIGenerated, or all", Required: true},
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "threshold",
+						Description: "Select threshold to reset (or 'all')",
+						Required:    true,
+						Choices: []*discordgo.ApplicationCommandOptionChoice{
+							{Name: "NuditySuggestive", Value: "NuditySuggestive"},
+							{Name: "NudityExplicit", Value: "NudityExplicit"},
+							{Name: "Offensive", Value: "Offensive"},
+							{Name: "AIGenerated", Value: "AIGenerated"},
+							{Name: "All (DANGER)", Value: "all"},
+						},
+					},
 				},
 			},
 			{
