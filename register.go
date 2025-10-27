@@ -101,12 +101,12 @@ func registerCommands(sess *discordgo.Session) {
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "reset",
-				Description: "Reset thresholds to default (one or all)",
+				Description: "Reset thresholds to default",
 				Options: []*discordgo.ApplicationCommandOption{
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
 						Name:        "threshold",
-						Description: "Select threshold to reset (or 'all')",
+						Description: "Select threshold to reset (or 'All to reset all')",
 						Required:    true,
 						Choices: []*discordgo.ApplicationCommandOptionChoice{
 							{Name: "Suggestive Nudity", Value: "NuditySuggestive"},
