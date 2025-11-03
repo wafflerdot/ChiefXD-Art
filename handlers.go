@@ -61,7 +61,6 @@ func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 	log.Printf("Bot joined or synced with guild: %s (%s)", event.Guild.Name, event.Guild.ID)
 
 	// Register all commands to this guild for instant availability
-	// This happens in addition to global commands which can take up to 1 hour to propagate
 	go func() {
 		appID := s.State.User.ID
 		createAllCommands(s, appID, event.Guild.ID)
