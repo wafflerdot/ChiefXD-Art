@@ -3,20 +3,31 @@ package main
 import (
 	"log"
 	"os"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// registerCommands creates the slash commands either globally or guild-scoped
+// registerCommands creates slash commands globally and optionally to a dev guild
 func registerCommands(sess *discordgo.Session) {
 	appID := sess.State.User.ID
-	guildID := os.Getenv("GUILD_ID")
+	devGuildID := os.Getenv("GUILD_ID")
 
-	if guildID == "" {
-		log.Println("Registering global application commands (GUILD_ID not set)")
-	} else {
-		log.Printf("Registering guild-scoped application commands to guild %s", guildID)
+	// Always register globally for users who authorize the app
+	log.Println("Registering global application commands")
+	createAllCommands(sess, appID, "")
+
+	// If dev guild is set, also register there for instant updates during development
+	if devGuildID != "" {
+		log.Printf("Registering guild-scoped commands to dev guild %s for instant updates", devGuildID)
+		createAllCommands(sess, appID, devGuildID)
+	}
+}
+
+// createAllCommands registers all bot commands to the specified scope (empty string = global)
+func createAllCommands(sess *discordgo.Session, appID, guildID string) {
+	scope := "global"
+	if guildID != "" {
+		scope = "guild " + guildID
 	}
 
 	// ----------------------------------------
@@ -37,9 +48,9 @@ func registerCommands(sess *discordgo.Session) {
 			Required:    false,
 		}},
 	}); err != nil {
-		log.Fatalf("cannot create command analyse: %v", err)
+		log.Printf("cannot create command analyse (%s): %v", scope, err)
 	} else {
-		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
+		log.Printf("created command: analyse (id=%s) [%s]", cmd.ID, scope)
 	}
 
 	// ----------------------------------------
@@ -49,9 +60,9 @@ func registerCommands(sess *discordgo.Session) {
 		Name:        "ping",
 		Description: "Pong!",
 	}); err != nil {
-		log.Fatalf("cannot create command ping: %v", err)
+		log.Printf("cannot create command ping (%s): %v", scope, err)
 	} else {
-		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
+		log.Printf("created command: ping (id=%s) [%s]", cmd.ID, scope)
 	}
 
 	// ----------------------------------------
@@ -61,9 +72,9 @@ func registerCommands(sess *discordgo.Session) {
 		Name:        "help",
 		Description: "Shows a list of commands",
 	}); err != nil {
-		log.Fatalf("cannot create command help: %v", err)
+		log.Printf("cannot create command help (%s): %v", scope, err)
 	} else {
-		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
+		log.Printf("created command: help (id=%s) [%s]", cmd.ID, scope)
 	}
 
 	// ----------------------------------------
@@ -136,9 +147,9 @@ func registerCommands(sess *discordgo.Session) {
 			},
 		},
 	}); err != nil {
-		log.Fatalf("cannot create command thresholds: %v", err)
+		log.Printf("cannot create command thresholds (%s): %v", scope, err)
 	} else {
-		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
+		log.Printf("created command: thresholds (id=%s) [%s]", cmd.ID, scope)
 	}
 
 	// ----------------------------------------
@@ -154,9 +165,9 @@ func registerCommands(sess *discordgo.Session) {
 			Required:    true,
 		}},
 	}); err != nil {
-		log.Fatalf("cannot create command ai: %v", err)
+		log.Printf("cannot create command ai (%s): %v", scope, err)
 	} else {
-		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
+		log.Printf("created command: ai (id=%s) [%s]", cmd.ID, scope)
 	}
 
 	// ----------------------------------------
@@ -172,15 +183,15 @@ func registerCommands(sess *discordgo.Session) {
 			Required:    true,
 		}},
 	}); err != nil {
-		log.Fatalf("cannot create command reverse: %v", err)
+		log.Printf("cannot create command reverse (%s): %v", scope, err)
 	} else {
-		log.Printf("created command: %s (id=%s)", cmd.Name, cmd.ID)
+		log.Printf("created command: reverse (id=%s) [%s]", cmd.ID, scope)
 	}
 
 	// ----------------------------------------
 	// /permissions <add | remove | list>
 	// ----------------------------------------
-	if _, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "permissions",
 		Description: "Manage roles allowed to use moderator-only commands",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -211,28 +222,8 @@ func registerCommands(sess *discordgo.Session) {
 			},
 		},
 	}); err != nil {
-		log.Fatalf("cannot create command permissions: %v", err)
+		log.Printf("cannot create command permissions (%s): %v", scope, err)
+	} else {
+		log.Printf("created command: permissions (id=%s) [%s]", cmd.ID, scope)
 	}
-
-	// ----------------------------------------
-	// Debug list stored commands for the chosen scope
-	// ----------------------------------------
-	go func() {
-		time.Sleep(2 * time.Second)
-
-		listScope := guildID
-		scopeLabel := "global"
-		if guildID != "" {
-			scopeLabel = "guild"
-		}
-
-		cmds, err := sess.ApplicationCommands(appID, listScope)
-		if err != nil {
-			log.Printf("failed to list %s application commands: %v", scopeLabel, err)
-			return
-		}
-		for _, c := range cmds {
-			log.Printf("discord stored %s command: name=%s id=%s", scopeLabel, c.Name, c.ID)
-		}
-	}()
 }

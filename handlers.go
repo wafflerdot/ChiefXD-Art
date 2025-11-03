@@ -27,6 +27,9 @@ func registerHandlers(sess *discordgo.Session) {
 	// Apply Rich Presence on READY
 	sess.AddHandler(onReadySetPresence)
 
+	// Register commands when bot joins a new guild
+	sess.AddHandler(onGuildCreate)
+
 	// /permissions <add|remove|list>
 	sess.AddHandler(handlePermissions)
 
@@ -47,6 +50,23 @@ func registerHandlers(sess *discordgo.Session) {
 
 	// /reverse <image_url>
 	sess.AddHandler(handleReverse)
+}
+
+// -------------------------
+// Guild Join Handler
+// -------------------------
+// onGuildCreate is triggered when the bot joins a new guild or when the bot starts up
+// and syncs all guilds. We register commands to the guild for instant availability.
+func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
+	log.Printf("Bot joined or synced with guild: %s (%s)", event.Guild.Name, event.Guild.ID)
+
+	// Register all commands to this guild for instant availability
+	// This happens in addition to global commands which can take up to 1 hour to propagate
+	go func() {
+		appID := s.State.User.ID
+		createAllCommands(s, appID, event.Guild.ID)
+		log.Printf("Commands registered for guild: %s", event.Guild.ID)
+	}()
 }
 
 // -------------------------
