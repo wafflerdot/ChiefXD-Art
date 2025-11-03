@@ -217,6 +217,23 @@ func IsOwner(userID string) bool {
 	return userID == OwnerID
 }
 
+// invokingUserID safely retrieves the user ID from an interaction (works in guilds and DMs)
+func invokingUserID(i *discordgo.InteractionCreate) string {
+	// In guilds, user is in i.Member.User
+	if i.Member != nil && i.Member.User != nil {
+		return i.Member.User.ID
+	}
+	// In DMs, user is directly in i.User
+	if i.User != nil {
+		return i.User.ID
+	}
+	// Fallback: check the underlying interaction
+	if i.Interaction != nil && i.Interaction.User != nil {
+		return i.Interaction.User.ID
+	}
+	return ""
+}
+
 // HasAdminContextPermission returns true if the interaction member has Administrator or Manage Guild permissions
 func HasAdminContextPermission(i *discordgo.InteractionCreate) bool {
 	if i.Member == nil {
@@ -228,16 +245,15 @@ func HasAdminContextPermission(i *discordgo.InteractionCreate) bool {
 
 // IsAllowedForRestricted checks whether the invoking user can access restricted commands in a guild
 func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool {
+	userID := invokingUserID(i)
+
 	// DMs: allow only owner
 	if i.GuildID == "" {
-		if i.Member != nil && i.Member.User != nil {
-			return IsOwner(i.Member.User.ID)
-		}
-		return false
+		return IsOwner(userID)
 	}
 
 	// Owner or admin in this context
-	if i.Member != nil && i.Member.User != nil && IsOwner(i.Member.User.ID) {
+	if IsOwner(userID) {
 		return true
 	}
 	if HasAdminContextPermission(i) {

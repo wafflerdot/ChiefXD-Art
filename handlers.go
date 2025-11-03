@@ -78,7 +78,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	// Only owner or admins can manage permissions
-	if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
+	if !(IsOwner(invokingUserID(i)) || HasAdminContextPermission(i)) {
 		_ = respondEphemeral(s, i, "You don't have permission to manage the whitelist.")
 		return
 	}
@@ -392,7 +392,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	// set/reset require owner/admin privileges
-	if !(IsOwner(i.Member.User.ID) || HasAdminContextPermission(i)) {
+	if !(IsOwner(invokingUserID(i)) || HasAdminContextPermission(i)) {
 		_ = respondEphemeral(s, i, "Only server admins or the owner can modify thresholds.")
 		return
 	}
@@ -433,7 +433,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_ = respondEphemeral(s, i, "Failed to update threshold")
 			return
 		}
-		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], val, i.Member.User.ID, guildID)
+		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], val, invokingUserID(i), guildID)
 		msg := fmt.Sprintf("Set %s to %.2f%%", canonical, val*100)
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: msg}})
@@ -456,10 +456,10 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				_ = respondEphemeral(s, i, "Failed to reset thresholds")
 				return
 			}
-			_ = thresholdsStore.LogChange(perms, "NuditySuggestive", oldNS, DefaultNuditySuggestiveThreshold, i.Member.User.ID, guildID)
-			_ = thresholdsStore.LogChange(perms, "NudityExplicit", oldNE, DefaultNudityExplicitThreshold, i.Member.User.ID, guildID)
-			_ = thresholdsStore.LogChange(perms, "Offensive", oldOff, DefaultOffensiveThreshold, i.Member.User.ID, guildID)
-			_ = thresholdsStore.LogChange(perms, "AIGenerated", oldAI, DefaultAIGeneratedThreshold, i.Member.User.ID, guildID)
+			_ = thresholdsStore.LogChange(perms, "NuditySuggestive", oldNS, DefaultNuditySuggestiveThreshold, invokingUserID(i), guildID)
+			_ = thresholdsStore.LogChange(perms, "NudityExplicit", oldNE, DefaultNudityExplicitThreshold, invokingUserID(i), guildID)
+			_ = thresholdsStore.LogChange(perms, "Offensive", oldOff, DefaultOffensiveThreshold, invokingUserID(i), guildID)
+			_ = thresholdsStore.LogChange(perms, "AIGenerated", oldAI, DefaultAIGeneratedThreshold, invokingUserID(i), guildID)
 			msg := "Reset all thresholds to default"
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{Content: msg}})
@@ -478,7 +478,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			return
 		}
 		// after reset, new value equals built-in default
-		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], defaultThresholdValue(canonical), i.Member.User.ID, guildID)
+		_ = thresholdsStore.LogChange(perms, canonical, oldMap[canonical], defaultThresholdValue(canonical), invokingUserID(i), guildID)
 		msg := fmt.Sprintf("Reset %s to default", canonical)
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: msg}})
