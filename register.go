@@ -36,6 +36,11 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "analyse",
 		Description: "Analyses an Image URL for inappropriate content",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
 		Options: []*discordgo.ApplicationCommandOption{{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
@@ -59,6 +64,11 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "ping",
 		Description: "Pong!",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
 	}); err != nil {
 		log.Printf("cannot create command ping (%s): %v", scope, err)
 	} else {
@@ -71,6 +81,11 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "help",
 		Description: "Shows a list of commands",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
 	}); err != nil {
 		log.Printf("cannot create command help (%s): %v", scope, err)
 	} else {
@@ -83,6 +98,11 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "thresholds",
 		Description: "Shows or modifies detection thresholds",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
@@ -158,6 +178,11 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "ai",
 		Description: "Checks an Image URL for AI usage",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
 		Options: []*discordgo.ApplicationCommandOption{{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
@@ -176,6 +201,11 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "reverse",
 		Description: "Performs a reverse image search on an Image URL",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
 		Options: []*discordgo.ApplicationCommandOption{{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
@@ -194,6 +224,9 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "permissions",
 		Description: "Manage roles allowed to use moderator-only commands",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild, // Only in guilds since it manages roles
+		},
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
