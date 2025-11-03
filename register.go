@@ -100,8 +100,6 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 		Description: "Shows or modifies detection thresholds",
 		Contexts: &[]discordgo.InteractionContextType{
 			discordgo.InteractionContextGuild,
-			discordgo.InteractionContextBotDM,
-			discordgo.InteractionContextPrivateChannel,
 		},
 		Options: []*discordgo.ApplicationCommandOption{
 			{
