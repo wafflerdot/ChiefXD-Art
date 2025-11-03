@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	FooterText = "Bot created by wafflerdot"
+	FooterText    = "Bot created by wafflerdot"
+	FooterIconURL = "https://cdn.discordapp.com/avatars/757284149793914900/a_ce62565c5aa6303ce7c932c83f227bf8.gif?size=1024&animated=true"
 )
 
 func main() {

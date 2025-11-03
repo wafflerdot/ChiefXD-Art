@@ -109,7 +109,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Name:   "Allowed Roles",
 				Value:  val,
 				Inline: false}},
-			Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 
 	case "remove":
@@ -134,7 +134,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Fields: []*discordgo.MessageEmbedField{{
 				Name:  "Allowed Roles",
 				Value: val, Inline: false}},
-			Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 
 	case "list":
@@ -147,7 +147,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Fields: []*discordgo.MessageEmbedField{{
 				Name:  "Allowed Roles",
 				Value: val, Inline: false}},
-			Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 	}
 }
@@ -222,7 +222,7 @@ func handleReverse(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if res.SimilarURL != "" {
 		fields = append(fields, &discordgo.MessageEmbedField{Name: "Similar Results", Value: res.SimilarURL, Inline: false})
 	}
-	embed := &discordgo.MessageEmbed{Title: "Reverse Image Search", Description: desc, Color: color, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+	embed := &discordgo.MessageEmbed{Title: "Reverse Image Search", Description: desc, Color: color, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
@@ -250,7 +250,7 @@ func handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Value:  fmt.Sprintf("%d ms", gw.Milliseconds()),
 				Inline: true,
 			},
-		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
@@ -274,7 +274,8 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
 			{Name: "/reverse", Value: "Performs a reverse image search on an Image URL\nArguments: `image_url` (required)", Inline: false},
 			{Name: "/thresholds", Value: "Shows or modifies detection thresholds\nSubcommands:\n- `list`: View current thresholds\n- `history [limit] [threshold]`: View recent changes\n- `set <Threshold> <Value>`: Modify a detection threshold (owner/admin only)\n- `reset <Threshold|all>`: Resets a threshold to its default value (owner/admin only)", Inline: false},
-		}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		},
+		Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
@@ -303,7 +304,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		val := fmt.Sprintf("Nudity (Explicit): %.0f%%\nNudity (Suggestive): %.0f%%\nOffensive: %.0f%%\nAI Generated: %.0f%%",
 			ne*100, ns*100, off*100, ai*100)
 		embed := &discordgo.MessageEmbed{Title: "Detection Thresholds", Description: "Current thresholds to flag image", Color: 0x9C27B0,
-			Fields: []*discordgo.MessageEmbedField{{Name: "Thresholds", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			Fields: []*discordgo.MessageEmbedField{{Name: "Thresholds", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
 	}
@@ -365,7 +366,7 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				c.Name, old, c.NewValue*100, user, c.Created.Format(time.RFC3339))
 			fields = append(fields, &discordgo.MessageEmbedField{Name: "Change", Value: val, Inline: false})
 		}
-		embed := &discordgo.MessageEmbed{Title: "Thresholds History", Color: 0x8E44AD, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		embed := &discordgo.MessageEmbed{Title: "Thresholds History", Color: 0x8E44AD, Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
 	}
@@ -523,7 +524,7 @@ func analyseCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCre
 			fields = append(fields, formatScores("AI Usage", typ))
 		}
 		embed := &discordgo.MessageEmbed{Title: "Image Analysis (Advanced)", Description: fmt.Sprintf("Analysis results for: %s", imageURL), Color: 0x4CAF50,
-			Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+			Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 		return
 	}
@@ -540,7 +541,7 @@ func analyseCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCre
 			a.Scores.NudityExplicit*100, a.Scores.NuditySuggestive*100, a.Scores.Offensive*100, a.Scores.AIGenerated*100), Inline: false},
 	}
 	embed := &discordgo.MessageEmbed{Title: "Image Analysis", Description: fmt.Sprintf("Analysis results for: %s", imageURL), Color: 0x00BFA5,
-		Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
@@ -570,7 +571,7 @@ func aiCommandHandlerBody(s *discordgo.Session, i *discordgo.InteractionCreate) 
 		{Name: "AI Generated", Value: fmt.Sprintf("%.0f%%", analysis.Scores.AIGenerated*100), Inline: true},
 	}
 	embed := &discordgo.MessageEmbed{Title: "AI Usage Check", Description: fmt.Sprintf("Analysis results for: %s", imageURL), Color: 0x3F51B5,
-		Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText}}
+		Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
 }
 
