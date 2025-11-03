@@ -41,6 +41,10 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 			discordgo.InteractionContextBotDM,
 			discordgo.InteractionContextPrivateChannel,
 		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
+			discordgo.ApplicationIntegrationUserInstall,
+		},
 		Options: []*discordgo.ApplicationCommandOption{{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
@@ -69,6 +73,10 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 			discordgo.InteractionContextBotDM,
 			discordgo.InteractionContextPrivateChannel,
 		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
+			discordgo.ApplicationIntegrationUserInstall,
+		},
 	}); err != nil {
 		log.Printf("cannot create command ping (%s): %v", scope, err)
 	} else {
@@ -86,6 +94,10 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 			discordgo.InteractionContextBotDM,
 			discordgo.InteractionContextPrivateChannel,
 		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
+			discordgo.ApplicationIntegrationUserInstall,
+		},
 	}); err != nil {
 		log.Printf("cannot create command help (%s): %v", scope, err)
 	} else {
@@ -100,6 +112,11 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 		Description: "Shows or modifies detection thresholds",
 		Contexts: &[]discordgo.InteractionContextType{
 			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
 		},
 		Options: []*discordgo.ApplicationCommandOption{
 			{
@@ -181,6 +198,10 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 			discordgo.InteractionContextBotDM,
 			discordgo.InteractionContextPrivateChannel,
 		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
+			discordgo.ApplicationIntegrationUserInstall,
+		},
 		Options: []*discordgo.ApplicationCommandOption{{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
@@ -204,6 +225,10 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 			discordgo.InteractionContextBotDM,
 			discordgo.InteractionContextPrivateChannel,
 		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
+			discordgo.ApplicationIntegrationUserInstall,
+		},
 		Options: []*discordgo.ApplicationCommandOption{{
 			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "image_url",
@@ -224,6 +249,9 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 		Description: "Manage roles allowed to use moderator-only commands",
 		Contexts: &[]discordgo.InteractionContextType{
 			discordgo.InteractionContextGuild, // Only in guilds since it manages roles
+		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall, // Only guild install
 		},
 		Options: []*discordgo.ApplicationCommandOption{
 			{
