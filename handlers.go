@@ -53,6 +53,9 @@ func registerHandlers(sess *discordgo.Session) {
 
 	// /whitelist add|remove (owner only)
 	sess.AddHandler(handleWhitelist)
+
+	// Component interactions (pagination)
+	sess.AddHandler(handleComponents)
 }
 
 // -------------------------
@@ -193,7 +196,7 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	sub := data.Options[0]
 	action := sub.Name
 
-	// For add/remove, parse the user option. Note: it's a User-type option, not a raw ID.
+	// For add/remove, parse the user option first, then fall back to user_id string
 	if action == "add" || action == "remove" {
 		var targetID string
 		for _, opt := range sub.Options {
@@ -202,9 +205,16 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 					targetID = u.ID
 				}
 			}
+			if opt.Name == "user_id" && targetID == "" {
+				val := strings.TrimSpace(opt.StringValue())
+				if val != "" {
+					// Basic sanity: Discord IDs are snowflakes (numeric strings). We'll accept as-is.
+					targetID = val
+				}
+			}
 		}
 		if targetID == "" {
-			_ = respondEphemeral(s, i, "Please specify a user.")
+			_ = respondEphemeral(s, i, "Please specify a user or a User ID.")
 			return
 		}
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
@@ -224,9 +234,8 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	// list subcommand: show all whitelisted users as "Username: <@ID>"
+	// list subcommand: with pagination if long
 	if action == "list" {
-		// Defer response, then build the list
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
 			log.Println("failed to defer whitelist list interaction:", err)
 			return
@@ -237,26 +246,102 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 			return
 		}
-		// Try to resolve usernames via session.State.User or direct get if available
-		lines := make([]string, 0, len(ids))
-		for _, id := range ids {
-			name := id
-			// Best-effort attempt: if available in state, use username
-			if s != nil && s.State != nil {
-				if u, _ := s.User(id); u != nil && u.Username != "" {
-					name = u.Username
-				}
-			}
-			lines = append(lines, fmt.Sprintf("%s: <@%s>", name, id))
-		}
-		val := strings.Join(lines, "\n")
-		embed := &discordgo.MessageEmbed{Title: "DM Whitelist", Description: "Users allowed to use restricted commands in DMs", Color: 0x95A5A6,
-			Fields: []*discordgo.MessageEmbedField{{Name: "Users", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
-		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+		// Sort for stable paging
+		sort.Strings(ids)
+		page := 0
+		pageSize := 10
+		embed, comps := buildWhitelistPageEmbed(s, ids, page, pageSize)
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}, Components: &comps})
 		return
 	}
 
 	_ = respondEphemeral(s, i, "Unknown subcommand. Use add, remove, or list.")
+}
+
+// buildWhitelistPageEmbed builds an embed page and action rows for pagination
+func buildWhitelistPageEmbed(s *discordgo.Session, ids []string, page, pageSize int) (*discordgo.MessageEmbed, []discordgo.MessageComponent) {
+	total := len(ids)
+	pages := (total + pageSize - 1) / pageSize
+	if page < 0 {
+		page = 0
+	}
+	if page >= pages {
+		page = pages - 1
+	}
+	start := page * pageSize
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+	lines := make([]string, 0, end-start)
+	for _, id := range ids[start:end] {
+		name := id
+		if s != nil && s.State != nil {
+			if u, _ := s.User(id); u != nil && u.Username != "" {
+				name = u.Username
+			}
+		}
+		lines = append(lines, fmt.Sprintf("%s: <@%s>", name, id))
+	}
+	val := strings.Join(lines, "\n")
+	title := fmt.Sprintf("DM Whitelist (%d/%d)", page+1, pages)
+	embed := &discordgo.MessageEmbed{Title: title, Description: "Users allowed to use restricted commands in DMs", Color: 0x95A5A6,
+		Fields: []*discordgo.MessageEmbedField{{Name: "Users", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
+
+	prevDisabled := page <= 0
+	nextDisabled := page >= pages-1
+	row := discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+		&discordgo.Button{CustomID: fmt.Sprintf("wl_prev:%d:%d", page, pageSize), Label: "Prev", Style: discordgo.PrimaryButton, Disabled: prevDisabled},
+		&discordgo.Button{CustomID: fmt.Sprintf("wl_next:%d:%d", page, pageSize), Label: "Next", Style: discordgo.PrimaryButton, Disabled: nextDisabled},
+	}}
+	return embed, []discordgo.MessageComponent{row}
+}
+
+// handle component interactions for whitelist pagination
+func handleComponents(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Type != discordgo.InteractionMessageComponent || i.Message == nil || i.Message.Components == nil {
+		return
+	}
+	cid := i.MessageComponentData().CustomID
+	if !strings.HasPrefix(cid, "wl_") {
+		return
+	}
+	// Only owner can page whitelist
+	if !IsOwner(invokingUserID(i)) {
+		_ = respondEphemeral(s, i, "Only the owner can view the whitelist.")
+		return
+	}
+	parts := strings.Split(cid, ":")
+	if len(parts) != 3 {
+		return
+	}
+	action := parts[0] // wl_prev or wl_next
+	curPage, _ := strconv.Atoi(parts[1])
+	pageSize, _ := strconv.Atoi(parts[2])
+	ids := perms.ListWhitelistedUsers()
+	if len(ids) == 0 {
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{Content: "No users are currently whitelisted.", Components: []discordgo.MessageComponent{}},
+		})
+		return
+	}
+	sort.Strings(ids)
+	page := curPage
+	if action == "wl_prev" && page > 0 {
+		page = page - 1
+	}
+	if action == "wl_next" {
+		pages := (len(ids) + pageSize - 1) / pageSize
+		if page < pages-1 {
+			page = page + 1
+		}
+	}
+	embed, comps := buildWhitelistPageEmbed(s, ids, page, pageSize)
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{Embeds: []*discordgo.MessageEmbed{embed}, Components: comps},
+	})
 }
 
 // -------------------------

@@ -289,7 +289,7 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	// ----------------------------------------
 	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
 		Name:        "whitelist",
-		Description: "Manage DM whitelist (owner only)",
+		Description: "Manage whitelist (owner only)",
 		Contexts: &[]discordgo.InteractionContextType{
 			discordgo.InteractionContextGuild,
 			discordgo.InteractionContextBotDM,
@@ -304,22 +304,30 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "add",
 				Description: "Add a user to the whitelist (owner only)",
-				Options: []*discordgo.ApplicationCommandOption{{
-					Type:        discordgo.ApplicationCommandOptionUser,
-					Name:        "user",
-					Description: "User to whitelist",
-					Required:    true,
-				}}},
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionUser,
+						Name:        "user",
+						Description: "User to whitelist (pick a user)",
+						Required:    false,
+					},
+					{Type: discordgo.ApplicationCommandOptionString, Name: "user_id", Description: "Alternative: Discord User ID", Required: false},
+				},
+			},
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "remove",
 				Description: "Remove a user from the whitelist (owner only)",
-				Options: []*discordgo.ApplicationCommandOption{{
-					Type:        discordgo.ApplicationCommandOptionUser,
-					Name:        "user",
-					Description: "User to remove",
-					Required:    true,
-				}}},
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionUser,
+						Name:        "user",
+						Description: "User to remove (pick a user)",
+						Required:    false,
+					},
+					{Type: discordgo.ApplicationCommandOptionString, Name: "user_id", Description: "Alternative: Discord User ID", Required: false},
+				},
+			},
 			{
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Name:        "list",
