@@ -283,4 +283,52 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	} else {
 		log.Printf("created command: permissions (id=%s) [%s]", cmd.ID, scope)
 	}
+
+	// ----------------------------------------
+	// /whitelist <add | remove | list>
+	// ----------------------------------------
+	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "whitelist",
+		Description: "Manage DM whitelist (owner only)",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
+			discordgo.ApplicationIntegrationUserInstall,
+		},
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "add",
+				Description: "Add a user to the whitelist (owner only)",
+				Options: []*discordgo.ApplicationCommandOption{{
+					Type:        discordgo.ApplicationCommandOptionUser,
+					Name:        "user",
+					Description: "User to whitelist",
+					Required:    true,
+				}}},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "remove",
+				Description: "Remove a user from the whitelist (owner only)",
+				Options: []*discordgo.ApplicationCommandOption{{
+					Type:        discordgo.ApplicationCommandOptionUser,
+					Name:        "user",
+					Description: "User to remove",
+					Required:    true,
+				}}},
+			{
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Name:        "list",
+				Description: "List all whitelisted users (owner only)",
+			},
+		},
+	}); err != nil {
+		log.Printf("cannot create command whitelist (%s): %v", scope, err)
+	} else {
+		log.Printf("created command: whitelist (id=%s) [%s]", cmd.ID, scope)
+	}
 }

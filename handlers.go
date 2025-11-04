@@ -50,6 +50,9 @@ func registerHandlers(sess *discordgo.Session) {
 
 	// /reverse <image_url>
 	sess.AddHandler(handleReverse)
+
+	// /whitelist add|remove (owner only)
+	sess.AddHandler(handleWhitelist)
 }
 
 // -------------------------
@@ -172,6 +175,91 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 // -------------------------
+// /whitelist (owner only)
+// -------------------------
+func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "whitelist" {
+		return
+	}
+	if !IsOwner(invokingUserID(i)) {
+		_ = respondEphemeral(s, i, "Only the bot owner can manage the whitelist.")
+		return
+	}
+	data := i.ApplicationCommandData()
+	if len(data.Options) == 0 {
+		_ = respondEphemeral(s, i, "Missing subcommand. Use add, remove, or list.")
+		return
+	}
+	sub := data.Options[0]
+	action := sub.Name
+
+	// For add/remove, parse the user option. Note: it's a User-type option, not a raw ID.
+	if action == "add" || action == "remove" {
+		var targetID string
+		for _, opt := range sub.Options {
+			if opt.Name == "user" && opt.Type == discordgo.ApplicationCommandOptionUser {
+				if u := opt.UserValue(s); u != nil {
+					targetID = u.ID
+				}
+			}
+		}
+		if targetID == "" {
+			_ = respondEphemeral(s, i, "Please specify a user.")
+			return
+		}
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
+			log.Println("failed to defer whitelist interaction:", err)
+			return
+		}
+		switch action {
+		case "add":
+			perms.AddWhitelistedUser(targetID)
+			msg := fmt.Sprintf("Added <@%s> to DM whitelist", targetID)
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+		case "remove":
+			perms.RemoveWhitelistedUser(targetID)
+			msg := fmt.Sprintf("Removed <@%s> from DM whitelist", targetID)
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+		}
+		return
+	}
+
+	// list subcommand: show all whitelisted users as "Username: <@ID>"
+	if action == "list" {
+		// Defer response, then build the list
+		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
+			log.Println("failed to defer whitelist list interaction:", err)
+			return
+		}
+		ids := perms.ListWhitelistedUsers()
+		if len(ids) == 0 {
+			msg := "No users are currently whitelisted."
+			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+			return
+		}
+		// Try to resolve usernames via session.State.User or direct get if available
+		lines := make([]string, 0, len(ids))
+		for _, id := range ids {
+			name := id
+			// Best-effort attempt: if available in state, use username
+			if s != nil && s.State != nil {
+				if u, _ := s.User(id); u != nil && u.Username != "" {
+					name = u.Username
+				}
+			}
+			lines = append(lines, fmt.Sprintf("%s: <@%s>", name, id))
+		}
+		val := strings.Join(lines, "\n")
+		embed := &discordgo.MessageEmbed{Title: "DM Whitelist", Description: "Users allowed to use restricted commands in DMs", Color: 0x95A5A6,
+			Fields: []*discordgo.MessageEmbedField{{Name: "Users", Value: val, Inline: false}}, Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+		return
+	}
+
+	_ = respondEphemeral(s, i, "Unknown subcommand. Use add, remove, or list.")
+}
+
+// -------------------------
 // /analyse
 // -------------------------
 func handleAnalyse(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -206,8 +294,9 @@ func handleReverse(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "reverse" {
 		return
 	}
-	if !perms.IsAllowedForRestricted(i) {
-		_ = respondEphemeral(s, i, "You don't have permission to use this command.")
+	// Make this command owner-only
+	if !IsOwner(invokingUserID(i)) {
+		_ = respondEphemeral(s, i, "Only the bot owner can use this command.")
 		return
 	}
 	var imageURL string
@@ -293,6 +382,7 @@ func handleHelp(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			{Name: "/ping", Value: "Displays the bot's response time", Inline: false},
 			{Name: "/reverse", Value: "Performs a reverse image search on an Image URL\nArguments: `image_url` (required)", Inline: false},
 			{Name: "/thresholds", Value: "Shows or modifies detection thresholds\nSubcommands:\n- `list`: View current thresholds\n- `history [limit] [threshold]`: View recent changes\n- `set <Threshold> <Value>`: Modify a detection threshold (owner/admin only)\n- `reset <Threshold|all>`: Resets a threshold to its default value (owner/admin only)", Inline: false},
+			{Name: "/whitelist", Value: "Manage DM whitelist (owner only). Subcommands: `add <user>`, `remove <user>`, `list`", Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL}}
 	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
