@@ -185,12 +185,12 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 	if !IsOwner(invokingUserID(i)) {
-		_ = respondEphemeral(s, i, "Only the bot owner can manage the whitelist.")
+		_ = respondEphemeral(s, i, "Only the bot owner can manage the whitelist")
 		return
 	}
 	data := i.ApplicationCommandData()
 	if len(data.Options) == 0 {
-		_ = respondEphemeral(s, i, "Missing subcommand. Use add, remove, or list.")
+		_ = respondEphemeral(s, i, "Missing subcommand. Use add, remove, or list")
 		return
 	}
 	sub := data.Options[0]
@@ -199,6 +199,7 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// For add/remove, parse the user option first, then fall back to user_id string
 	if action == "add" || action == "remove" {
 		var targetID string
+		var providedByID bool
 		for _, opt := range sub.Options {
 			if opt.Name == "user" && opt.Type == discordgo.ApplicationCommandOptionUser {
 				if u := opt.UserValue(s); u != nil {
@@ -208,15 +209,31 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			if opt.Name == "user_id" && targetID == "" {
 				val := strings.TrimSpace(opt.StringValue())
 				if val != "" {
-					// Basic sanity: Discord IDs are snowflakes (numeric strings). We'll accept as-is.
 					targetID = val
+					providedByID = true
 				}
 			}
 		}
 		if targetID == "" {
-			_ = respondEphemeral(s, i, "Please specify a user or a User ID.")
+			_ = respondEphemeral(s, i, "Please specify a user (user picker) or a numeric user ID")
 			return
 		}
+
+		// Stricter validation for user_id path
+		if providedByID {
+			if !isValidSnowflake(targetID) {
+				_ = respondEphemeral(s, i, "The provided user ID is not a valid Discord ID")
+				return
+			}
+			// For add, attempt to fetch the user to ensure existence
+			if action == "add" {
+				if !canFetchUser(s, targetID) {
+					_ = respondEphemeral(s, i, "Could not validate user ID. Please check the ID or use the user picker")
+					return
+				}
+			}
+		}
+
 		if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
 			log.Println("failed to defer whitelist interaction:", err)
 			return
@@ -227,6 +244,12 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			msg := fmt.Sprintf("Added <@%s> to DM whitelist", targetID)
 			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 		case "remove":
+			// For removal, numeric snowflake validation is sufficient when provided via user_id
+			if providedByID && !isValidSnowflake(targetID) {
+				msg := "The provided user ID is not a valid Discord ID"
+				_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
+				return
+			}
 			perms.RemoveWhitelistedUser(targetID)
 			msg := fmt.Sprintf("Removed <@%s> from DM whitelist", targetID)
 			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
@@ -796,4 +819,29 @@ func canonicalThresholdName(in string) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// isValidSnowflake checks basic Discord snowflake format: numeric string length 15..21
+func isValidSnowflake(id string) bool {
+	if len(id) < 15 || len(id) > 21 {
+		return false
+	}
+	for _, r := range id {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// canFetchUser attempts to fetch a user by ID; returns true if a user is returned
+func canFetchUser(s *discordgo.Session, id string) bool {
+	if s == nil {
+		return false
+	}
+	u, err := s.User(id)
+	if err != nil || u == nil || u.ID == "" {
+		return false
+	}
+	return true
 }
