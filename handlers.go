@@ -95,9 +95,7 @@ func handlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	sub := data.Options[0]
-	switch sub.Name {
-	case "add", "remove", "list":
-	default:
+	if sub.Name != "add" && sub.Name != "remove" && sub.Name != "list" {
 		_ = respondEphemeral(s, i, "Unknown subcommand.")
 		return
 	}
@@ -241,7 +239,7 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch action {
 		case "add":
 			perms.AddWhitelistedUser(targetID)
-			msg := fmt.Sprintf("Added <@%s> to DM whitelist", targetID)
+			msg := fmt.Sprintf("Added <@%s> to the whitelist", targetID)
 			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 		case "remove":
 			// For removal, numeric snowflake validation is sufficient when provided via user_id
@@ -251,7 +249,7 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				return
 			}
 			perms.RemoveWhitelistedUser(targetID)
-			msg := fmt.Sprintf("Removed <@%s> from DM whitelist", targetID)
+			msg := fmt.Sprintf("Removed <@%s> from the whitelist", targetID)
 			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 		}
 		return
@@ -265,7 +263,7 @@ func handleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 		ids := perms.ListWhitelistedUsers()
 		if len(ids) == 0 {
-			msg := "No users are currently whitelisted."
+			msg := "No users are currently whitelisted"
 			_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Content: &msg})
 			return
 		}
@@ -331,7 +329,7 @@ func handleComponents(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 	// Only owner can page whitelist
 	if !IsOwner(invokingUserID(i)) {
-		_ = respondEphemeral(s, i, "Only the owner can view the whitelist.")
+		_ = respondEphemeral(s, i, "Only the owner can view the whitelist")
 		return
 	}
 	parts := strings.Split(cid, ":")
@@ -345,7 +343,7 @@ func handleComponents(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if len(ids) == 0 {
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseUpdateMessage,
-			Data: &discordgo.InteractionResponseData{Content: "No users are currently whitelisted.", Components: []discordgo.MessageComponent{}},
+			Data: &discordgo.InteractionResponseData{Content: "No users are currently whitelisted", Components: []discordgo.MessageComponent{}},
 		})
 		return
 	}
