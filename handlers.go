@@ -56,6 +56,9 @@ func registerHandlers(sess *discordgo.Session) {
 
 	// Component interactions (pagination)
 	sess.AddHandler(handleComponents)
+
+	// owner-only waffle
+	sess.AddHandler(handleWaffle)
 }
 
 // -------------------------
@@ -677,6 +680,37 @@ func handleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		msg := fmt.Sprintf("Reset %s to default", canonical)
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: msg}})
+	}
+}
+
+// -------------------------
+// /waffle <message>
+// -------------------------
+func handleWaffle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "waffle" {
+		return
+	}
+	if !IsOwner(invokingUserID(i)) {
+		_ = respondEphemeral(s, i, "Only the bot owner can use this command")
+		return
+	}
+	// Extract the message option
+	var msg string
+	for _, opt := range i.ApplicationCommandData().Options {
+		if opt.Name == "message" {
+			msg = opt.StringValue()
+		}
+	}
+	if msg == "" {
+		_ = respondEphemeral(s, i, "Please provide a message")
+		return
+	}
+	// Respond with plain text only, no embed, no extra formatting
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Content: msg},
+	}); err != nil {
+		log.Println("failed to respond to waffle:", err)
 	}
 }
 

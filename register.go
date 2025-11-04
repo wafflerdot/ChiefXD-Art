@@ -339,4 +339,31 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	} else {
 		log.Printf("created command: whitelist (id=%s) [%s]", cmd.ID, scope)
 	}
+
+	// ----------------------------------------
+	// /waffle
+	// ----------------------------------------
+	if cmd, err := sess.ApplicationCommandCreate(appID, guildID, &discordgo.ApplicationCommand{
+		Name:        "waffle",
+		Description: "Waffle",
+		Contexts: &[]discordgo.InteractionContextType{
+			discordgo.InteractionContextGuild,
+			discordgo.InteractionContextBotDM,
+			discordgo.InteractionContextPrivateChannel,
+		},
+		IntegrationTypes: &[]discordgo.ApplicationIntegrationType{
+			discordgo.ApplicationIntegrationGuildInstall,
+			discordgo.ApplicationIntegrationUserInstall,
+		},
+		Options: []*discordgo.ApplicationCommandOption{{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "message",
+			Description: "Message to print",
+			Required:    true,
+		}},
+	}); err != nil {
+		log.Printf("cannot create command waffle (%s): %v", scope, err)
+	} else {
+		log.Printf("created command: waffle (id=%s) [%s]", cmd.ID, scope)
+	}
 }
