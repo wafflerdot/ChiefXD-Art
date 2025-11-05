@@ -705,12 +705,18 @@ func handleWaffle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		_ = respondEphemeral(s, i, "Please provide a message")
 		return
 	}
-	// Respond with plain text only, no embed, no extra formatting
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{Content: msg},
-	}); err != nil {
-		log.Println("failed to respond to waffle:", err)
+
+	// Acknowledge ephemerally, then send the plain message to the channel
+	if err := respondEphemeral(s, i, "Message sent."); err != nil {
+		// Fallback: if ephemeral isn't allowed (e.g., in DMs), acknowledge normally
+		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{Content: "Message sent."},
+		})
+	}
+	// Now send the message content unmodified as a normal message
+	if _, err := s.ChannelMessageSend(i.ChannelID, msg); err != nil {
+		log.Println("failed to send waffle message:", err)
 	}
 }
 
