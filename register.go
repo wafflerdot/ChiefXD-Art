@@ -7,12 +7,22 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// registerCommands creates slash commands globally and optionally to a dev guild
+// registerCommands deletes any existing commands and then creates fresh ones.
+// It always manages global commands, and if GUILD_ID is set, it also manages that guild's commands.
 func registerCommands(sess *discordgo.Session) {
 	appID := sess.State.User.ID
 	devGuildID := os.Getenv("GUILD_ID")
 
-	// Always register globally for users who authorize the app
+	// Cleanup: delete all previously registered commands so we start from a clean state.
+	log.Println("Deleting existing global application commands")
+	deleteAllCommands(sess, appID, "")
+
+	if devGuildID != "" {
+		log.Printf("Deleting existing guild-scoped commands for dev guild %s", devGuildID)
+		deleteAllCommands(sess, appID, devGuildID)
+	}
+
+	// Recreate commands from scratch
 	log.Println("Registering global application commands")
 	createAllCommands(sess, appID, "")
 
@@ -21,6 +31,36 @@ func registerCommands(sess *discordgo.Session) {
 		log.Printf("Registering guild-scoped commands to dev guild %s for instant updates", devGuildID)
 		createAllCommands(sess, appID, devGuildID)
 	}
+}
+
+// deleteAllCommands removes all application commands for the given scope
+// Pass guildID = "" to target global commands; otherwise, the specified guild is targeted
+func deleteAllCommands(sess *discordgo.Session, appID, guildID string) {
+	scope := "global"
+	if guildID != "" {
+		scope = "guild " + guildID
+	}
+
+	// Fetch currently registered commands for the scope
+	cmds, err := sess.ApplicationCommands(appID, guildID)
+	if err != nil {
+		log.Printf("failed to fetch existing commands (%s): %v", scope, err)
+		return
+	}
+	if len(cmds) == 0 {
+		log.Printf("no existing commands to delete (%s)", scope)
+		return
+	}
+
+	deleted := 0
+	for _, c := range cmds {
+		if err := sess.ApplicationCommandDelete(appID, guildID, c.ID); err != nil {
+			log.Printf("failed to delete command %s (%s): %v", c.Name, scope, err)
+			continue
+		}
+		deleted++
+	}
+	log.Printf("deleted %d command(s) [%s]", deleted, scope)
 }
 
 // createAllCommands registers all bot commands to the specified scope (empty string = global)
