@@ -70,11 +70,14 @@ func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 	log.Printf("Bot joined or synced with guild: %s (%s)", event.Guild.Name, event.Guild.ID)
 
 	// Register all commands to this guild for instant availability
-	go func() {
-		appID := s.State.User.ID
-		createAllCommands(s, appID, event.Guild.ID)
-		log.Printf("Commands registered for guild: %s", event.Guild.ID)
-	}()
+	if globalRegister {
+		go func() {
+			appID := s.State.User.ID
+			createAllCommands(s, appID, event.Guild.ID)
+			log.Printf("Commands registered for guild: %s", event.Guild.ID)
+		}()
+	}
+
 }
 
 // -------------------------

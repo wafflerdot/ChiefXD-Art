@@ -17,7 +17,10 @@ const (
 	FooterIconURL = "https://cdn.discordapp.com/avatars/757284149793914900/a_ce62565c5aa6303ce7c932c83f227bf8.gif?size=1024&animated=true"
 )
 
+var globalRegister bool
+
 func main() {
+	globalRegister = false
 	// Load environment variables from .env
 	_ = godotenv.Load()
 
@@ -89,6 +92,7 @@ func main() {
 
 	// Create slash commands (global or guild scoped depending on GUILD_ID)
 	registerCommands(sess)
+	globalRegister = true
 
 	// ----------------------------------------
 	// Block until termination, then graceful shutdown
