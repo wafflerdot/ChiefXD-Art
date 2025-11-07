@@ -8,29 +8,33 @@ import (
 )
 
 // registerCommands deletes any existing commands and then creates fresh ones.
-// It always manages global commands, and if GUILD_ID is set, it also manages that guild's commands.
+// Behaviour (dev toggle):
+// - If env GUILD_ID is empty: manage GLOBAL commands only (delete/create global).
+// - If env GUILD_ID is set: manage ONLY that GUILD'S commands (delete/create guild) and delete any GLOBAL commands to avoid duplicates in that guild.
 func registerCommands(sess *discordgo.Session) {
 	appID := sess.State.User.ID
 	devGuildID := os.Getenv("GUILD_ID")
 
-	// Cleanup: delete all previously registered commands so we start from a clean state.
-	log.Println("Deleting existing global application commands")
+	if devGuildID == "" {
+		// Global-only mode
+		log.Println("Deleting existing global application commands")
+		deleteAllCommands(sess, appID, "")
+
+		log.Println("Registering global application commands")
+		createAllCommands(sess, appID, "")
+		return
+	}
+
+	// Dev/guild-only mode
+	log.Printf("Deleting existing guild-scoped commands for dev guild %s", devGuildID)
+	deleteAllCommands(sess, appID, devGuildID)
+
+	// Also delete global commands to ensure they don't appear alongside guild-scoped ones in the dev guild
+	log.Println("Deleting existing global application commands to avoid duplicates in dev guild")
 	deleteAllCommands(sess, appID, "")
 
-	if devGuildID != "" {
-		log.Printf("Deleting existing guild-scoped commands for dev guild %s", devGuildID)
-		deleteAllCommands(sess, appID, devGuildID)
-	}
-
-	// Recreate commands from scratch
-	log.Println("Registering global application commands")
-	createAllCommands(sess, appID, "")
-
-	// If dev guild is set, also register there for instant updates during development
-	if devGuildID != "" {
-		log.Printf("Registering guild-scoped commands to dev guild %s for instant updates", devGuildID)
-		createAllCommands(sess, appID, devGuildID)
-	}
+	log.Printf("Registering guild-scoped commands to dev guild %s for instant updates", devGuildID)
+	createAllCommands(sess, appID, devGuildID)
 }
 
 // deleteAllCommands removes all application commands for the given scope
