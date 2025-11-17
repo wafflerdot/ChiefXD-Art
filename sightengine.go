@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+
+	httputil "ChiefXD-Art/http"
 )
 
 // sightengine calls the Sightengine API with the full model set used by standard/advanced analysis
@@ -30,7 +32,7 @@ func sightengine(imageLink string) (map[string]any, error) {
 	}
 	u.RawQuery = params.Encode()
 
-	resp, err := sharedHTTPClient.Get(u.String())
+	resp, err := httputil.SharedHTTPClient.Get(u.String())
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -72,7 +74,7 @@ func sightengineAIOnly(imageLink string) (map[string]any, error) {
 	}
 	u.RawQuery = params.Encode()
 
-	resp, err := sharedHTTPClient.Get(u.String())
+	resp, err := httputil.SharedHTTPClient.Get(u.String())
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}

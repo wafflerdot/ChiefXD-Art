@@ -1,16 +1,17 @@
-package main
+package httputil
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
 	"os"
 )
 
-var httpServer *http.Server
+var server *http.Server
 
-// startHTTPServer starts a minimal HTTP server
-func startHTTPServer() {
+// StartServer starts a minimal HTTP server for health checks
+func StartServer() {
 	// Resolve port (default 8080 for Cloud Run)
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -29,7 +30,7 @@ func startHTTPServer() {
 	})
 
 	// Server instance
-	httpServer = &http.Server{
+	server = &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
 	}
@@ -37,8 +38,16 @@ func startHTTPServer() {
 	// Run server in background to avoid blocking the bot
 	go func() {
 		log.Printf("HTTP server listening on :%s", port)
-		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}
 	}()
+}
+
+// Shutdown gracefully shuts down the HTTP server
+func Shutdown(ctx context.Context) error {
+	if server != nil {
+		return server.Shutdown(ctx)
+	}
+	return nil
 }

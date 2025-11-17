@@ -1,4 +1,4 @@
-package main
+package httputil
 
 import (
 	"net"
@@ -21,14 +21,14 @@ var sharedTransport = &http.Transport{
 	TLSHandshakeTimeout: 10 * time.Second,
 }
 
-// sharedHTTPClient is a default client with a sensible timeout
-var sharedHTTPClient = &http.Client{
+// SharedHTTPClient is a default client with a sensible timeout
+var SharedHTTPClient = &http.Client{
 	Timeout:   30 * time.Second,
 	Transport: sharedTransport,
 }
 
-// newHTTPClientWithTimeout returns a client that reuses the shared transport but
+// NewHTTPClientWithTimeout returns a client that reuses the shared transport but
 // with a custom timeout, useful for APIs that need different request ceilings
-func newHTTPClientWithTimeout(d time.Duration) *http.Client {
+func NewHTTPClientWithTimeout(d time.Duration) *http.Client {
 	return &http.Client{Timeout: d, Transport: sharedTransport}
 }

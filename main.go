@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	httputil "ChiefXD-Art/http"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 )
@@ -58,7 +60,7 @@ func main() {
 	// ----------------------------------------
 	// Start lightweight HTTP health server
 	// ----------------------------------------
-	startHTTPServer()
+	httputil.StartServer()
 
 	// ----------------------------------------
 	// Discord session setup
@@ -103,7 +105,5 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if httpServer != nil {
-		_ = httpServer.Shutdown(ctx)
-	}
+	_ = httputil.Shutdown(ctx)
 }

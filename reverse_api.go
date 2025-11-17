@@ -1,6 +1,7 @@
 package main
 
 import (
+	httputil "ChiefXD-Art/http"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -50,7 +51,7 @@ func NewReverseAPIClient() (*ReverseAPIClient, error) {
 	return &ReverseAPIClient{
 		Endpoint: endpoint,
 		APIKey:   os.Getenv("REVERSE_API_KEY"),
-		Client:   newHTTPClientWithTimeout(to),
+		Client:   httputil.NewHTTPClientWithTimeout(to),
 	}, nil
 }
 
