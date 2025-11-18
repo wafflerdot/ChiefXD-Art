@@ -1,6 +1,6 @@
 # ChiefXD Art Discord Bot (Go)
 
-A Discord bot written in Go that analyses images using Sightengine, with standard and advanced outputs, a role-based permissions system with DB or JSON persistence, and Cloud Run–friendly health checks.
+A Discord bot written in Go that analyses images using Sightengine, with standard and advanced outputs, a role-based permissions system with DB persistence, and Cloud Run–friendly health checks.
 
 ## Features
 - Sightengine-powered image analysis
@@ -12,9 +12,7 @@ A Discord bot written in Go that analyses images using Sightengine, with standar
   - `/thresholds` subcommands to view, set, reset, and view history of thresholds per guild
   - `/analyse` and `/ai` are restricted to allowed roles, admins, or configured owner
   - `/ping` and `/help` for diagnostics and documentation
-- Storage options
-  - DB-backed (Postgres or MySQL) — recommended for production (permissions + per-guild thresholds + history)
-  - JSON-backed local files — convenient for development
+- DB-backed storage (Postgres or MySQL) - stores permissions + per-guild thresholds + history
 - Cloud Run friendly: health endpoints, PORT usage, containerised via `Dockerfile`
 - Reverse image search integration (google-reverse-image-api): POST-only client with simple, structured output ready for embeds
 
@@ -51,9 +49,7 @@ Restricted commands: `/analyse`, `/ai`, `/permissions`, `/thresholds` (set/reset
 - Advanced mode returns raw sub-scores and does NOT compute Allowed — use standard/AI-only to get verdicts.
 
 ## Permissions and storage
-- Permission storage options:
-  - DB-backed (recommended): `PERMS_DSN` (connection string) + `PERMS_DIALECT` (`postgres` or `mysql`). The bot creates necessary tables for permissions, thresholds, and history.
-  - JSON-backed (dev): `PERMS_FILE` (defaults to `permissions.json`) for local, simple storage.
+- DB-backed: `PERMS_DSN` (connection string) + `PERMS_DIALECT` (`postgres` or `mysql`). The bot creates necessary tables for permissions, thresholds, and history.
 - The permissions store controls which roles can use restricted commands. Owner (`OWNER_ID`) and server admins retain override access.
 - Role mentions returned by the bot are formatted as Discord role mentions: `<@&ROLEID>` (so they appear as clickable mentions in Discord).
 
@@ -107,7 +103,7 @@ The process starts an HTTP server for health checks and the Discord gateway sess
 - The container must listen on the `PORT` environment variable (Cloud Run sets `PORT` automatically). The project provides a `Dockerfile`.
 - For Cloud Run:
   - Supply environment variables via Cloud Run console or Secret Manager.
-  - If you use DB-backed permissions/thresholds, point `PERMS_DSN` at a Cloud SQL or managed DB instance and set `PERMS_DIALECT` accordingly.
+  - Point `PERMS_DSN` at a Cloud SQL or managed DB instance and set `PERMS_DIALECT` accordingly.
   - Ensure the container actually listens on the exposed `PORT` or Cloud Run will fail the revision (the startup error will indicate a port/listen problem).
 - If you prefer JSON-backed storage in Cloud Run, ensure the JSON file points to a persistent mount or storage location — the container filesystem is ephemeral across revisions.
 
