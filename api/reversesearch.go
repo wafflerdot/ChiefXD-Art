@@ -66,7 +66,6 @@ func ReverseSearch(imageURL string) (map[string]any, error) {
 }
 
 // ReverseSearch performs the reverse image lookup using POST only.
-// Matches the example in example.py:
 //
 //	POST {endpoint}
 //	Body: {"imageUrl": "<image URL>"}
