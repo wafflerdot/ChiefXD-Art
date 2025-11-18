@@ -2,14 +2,10 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
-	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	_ "github.com/go-sql-driver/mysql"
@@ -34,21 +30,14 @@ const (
 
 // PermStore keeps the list of allowed role IDs per guild
 // and a global user whitelist for DM usage.
-// Backing storage:
-// - If db is configured, data is stored in SQL tables
-// - Otherwise falls back to JSON file persistence
+// Backing storage: SQL database (PostgreSQL or MySQL)
 type PermStore struct {
-	mu         sync.RWMutex
-	guildRoles map[string]map[string]struct{} // guildID -> set(roleID) (used for JSON fallback)
-	userWL     map[string]struct{}            // set(userID) for JSON fallback
-	filePath   string                         // JSON file path (fallback)
-
 	db      *sql.DB
 	dialect string
 }
 
 func NewPermStore() *PermStore {
-	return &PermStore{guildRoles: make(map[string]map[string]struct{}), userWL: make(map[string]struct{})}
+	return &PermStore{}
 }
 
 var perms = NewPermStore()
@@ -109,121 +98,75 @@ func (ps *PermStore) ConfigureDB(dialect, dsn string) error {
 	return nil
 }
 
-// ConfigureFile sets the JSON file path used for persistence (fallback mode)
-func (ps *PermStore) ConfigureFile(path string) {
-	ps.mu.Lock()
-	defer ps.mu.Unlock()
-	ps.filePath = path
-}
-
 // AddRole adds a role to the allowed set for a guild and persists
 func (ps *PermStore) AddRole(guildID, roleID string) {
-	// DB-backed path
-	if ps.db != nil {
-		var sqlStmt string
-		switch ps.dialect {
-		case DialectPostgres:
-			sqlStmt = `INSERT INTO permissions (guild_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
-		case DialectMySQL:
-			sqlStmt = `INSERT IGNORE INTO permissions (guild_id, role_id) VALUES (?, ?)`
-		}
-		if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
-			log.Println("permissions db insert error:", err)
-		}
+	if ps.db == nil {
+		log.Println("permissions: database not configured")
 		return
 	}
 
-	// JSON fallback
-	ps.mu.Lock()
-	set := ps.guildRoles[guildID]
-	if set == nil {
-		set = make(map[string]struct{})
-		ps.guildRoles[guildID] = set
+	var sqlStmt string
+	switch ps.dialect {
+	case DialectPostgres:
+		sqlStmt = `INSERT INTO permissions (guild_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	case DialectMySQL:
+		sqlStmt = `INSERT IGNORE INTO permissions (guild_id, role_id) VALUES (?, ?)`
 	}
-	set[roleID] = struct{}{}
-	path := ps.filePath
-	ps.mu.Unlock()
-	if path != "" {
-		if err := ps.SaveToFile(); err != nil {
-			log.Println("permissions save (add) error:", err)
-		}
+	if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
+		log.Println("permissions db insert error:", err)
 	}
 }
 
 // RemoveRole removes a role from the allowed set for a guild and persists
 func (ps *PermStore) RemoveRole(guildID, roleID string) {
-	// DB-backed path
-	if ps.db != nil {
-		var sqlStmt string
-		switch ps.dialect {
-		case DialectPostgres:
-			sqlStmt = `DELETE FROM permissions WHERE guild_id = $1 AND role_id = $2`
-		case DialectMySQL:
-			sqlStmt = `DELETE FROM permissions WHERE guild_id = ? AND role_id = ?`
-		}
-		if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
-			log.Println("permissions db delete error:", err)
-		}
+	if ps.db == nil {
+		log.Println("permissions: database not configured")
 		return
 	}
 
-	// JSON fallback
-	ps.mu.Lock()
-	if set := ps.guildRoles[guildID]; set != nil {
-		delete(set, roleID)
-		if len(set) == 0 {
-			delete(ps.guildRoles, guildID)
-		}
+	var sqlStmt string
+	switch ps.dialect {
+	case DialectPostgres:
+		sqlStmt = `DELETE FROM permissions WHERE guild_id = $1 AND role_id = $2`
+	case DialectMySQL:
+		sqlStmt = `DELETE FROM permissions WHERE guild_id = ? AND role_id = ?`
 	}
-	path := ps.filePath
-	ps.mu.Unlock()
-	if path != "" {
-		if err := ps.SaveToFile(); err != nil {
-			log.Println("permissions save (remove) error:", err)
-		}
+	if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
+		log.Println("permissions db delete error:", err)
 	}
 }
 
 // ListRoles returns a copy of the allowed role IDs for a guild
 func (ps *PermStore) ListRoles(guildID string) []string {
-	// DB-backed path
-	if ps.db != nil {
-		var (
-			rows *sql.Rows
-			err  error
-		)
-		switch ps.dialect {
-		case DialectPostgres:
-			rows, err = ps.db.Query(`SELECT role_id FROM permissions WHERE guild_id = $1`, guildID)
-		case DialectMySQL:
-			rows, err = ps.db.Query(`SELECT role_id FROM permissions WHERE guild_id = ?`, guildID)
-		}
-		if err != nil {
-			log.Println("permissions db list error:", err)
-			return nil
-		}
-		defer rows.Close()
-		out := make([]string, 0, 8)
-		for rows.Next() {
-			var roleID string
-			if err := rows.Scan(&roleID); err != nil {
-				log.Println("permissions db scan error:", err)
-				continue
-			}
-			out = append(out, roleID)
-		}
-		return out
+	if ps.db == nil {
+		log.Println("permissions: database not configured")
+		return nil
 	}
 
-	// JSON fallback
-	ps.mu.RLock()
-	defer ps.mu.RUnlock()
-	set := ps.guildRoles[guildID]
-	out := make([]string, 0, len(set))
-	for r := range set {
-		out = append(out, r)
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	switch ps.dialect {
+	case DialectPostgres:
+		rows, err = ps.db.Query(`SELECT role_id FROM permissions WHERE guild_id = $1`, guildID)
+	case DialectMySQL:
+		rows, err = ps.db.Query(`SELECT role_id FROM permissions WHERE guild_id = ?`, guildID)
 	}
-	sort.Strings(out)
+	if err != nil {
+		log.Println("permissions db list error:", err)
+		return nil
+	}
+	defer rows.Close()
+	out := make([]string, 0, 8)
+	for rows.Next() {
+		var roleID string
+		if err := rows.Scan(&roleID); err != nil {
+			log.Println("permissions db scan error:", err)
+			continue
+		}
+		out = append(out, roleID)
+	}
 	return out
 }
 
@@ -233,27 +176,20 @@ func (ps *PermStore) AddWhitelistedUser(userID string) {
 	if userID == "" {
 		return
 	}
-	if ps.db != nil {
-		var stmt string
-		switch ps.dialect {
-		case DialectPostgres:
-			stmt = `INSERT INTO whitelist_users (user_id) VALUES ($1) ON CONFLICT DO NOTHING`
-		case DialectMySQL:
-			stmt = `INSERT IGNORE INTO whitelist_users (user_id) VALUES (?)`
-		}
-		if _, err := ps.db.Exec(stmt, userID); err != nil {
-			log.Println("whitelist insert error:", err)
-		}
+	if ps.db == nil {
+		log.Println("permissions: database not configured")
 		return
 	}
-	ps.mu.Lock()
-	ps.userWL[userID] = struct{}{}
-	path := ps.filePath
-	ps.mu.Unlock()
-	if path != "" {
-		if err := ps.SaveToFile(); err != nil {
-			log.Println("whitelist save (add) error:", err)
-		}
+
+	var stmt string
+	switch ps.dialect {
+	case DialectPostgres:
+		stmt = `INSERT INTO whitelist_users (user_id) VALUES ($1) ON CONFLICT DO NOTHING`
+	case DialectMySQL:
+		stmt = `INSERT IGNORE INTO whitelist_users (user_id) VALUES (?)`
+	}
+	if _, err := ps.db.Exec(stmt, userID); err != nil {
+		log.Println("whitelist insert error:", err)
 	}
 }
 
@@ -263,55 +199,43 @@ func (ps *PermStore) RemoveWhitelistedUser(userID string) {
 	if userID == "" {
 		return
 	}
-	if ps.db != nil {
-		var stmt string
-		switch ps.dialect {
-		case DialectPostgres:
-			stmt = `DELETE FROM whitelist_users WHERE user_id = $1`
-		case DialectMySQL:
-			stmt = `DELETE FROM whitelist_users WHERE user_id = ?`
-		}
-		if _, err := ps.db.Exec(stmt, userID); err != nil {
-			log.Println("whitelist delete error:", err)
-		}
+	if ps.db == nil {
+		log.Println("permissions: database not configured")
 		return
 	}
-	ps.mu.Lock()
-	delete(ps.userWL, userID)
-	path := ps.filePath
-	ps.mu.Unlock()
-	if path != "" {
-		if err := ps.SaveToFile(); err != nil {
-			log.Println("whitelist save (remove) error:", err)
-		}
+
+	var stmt string
+	switch ps.dialect {
+	case DialectPostgres:
+		stmt = `DELETE FROM whitelist_users WHERE user_id = $1`
+	case DialectMySQL:
+		stmt = `DELETE FROM whitelist_users WHERE user_id = ?`
+	}
+	if _, err := ps.db.Exec(stmt, userID); err != nil {
+		log.Println("whitelist delete error:", err)
 	}
 }
 
 // ListWhitelistedUsers returns a slice of whitelisted user IDs
 func (ps *PermStore) ListWhitelistedUsers() []string {
-	if ps.db != nil {
-		rows, err := ps.db.Query(`SELECT user_id FROM whitelist_users`)
-		if err != nil {
-			log.Println("whitelist list error:", err)
-			return nil
-		}
-		defer rows.Close()
-		var out []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err == nil {
-				out = append(out, id)
-			}
-		}
-		return out
+	if ps.db == nil {
+		log.Println("permissions: database not configured")
+		return nil
 	}
-	ps.mu.RLock()
-	defer ps.mu.RUnlock()
-	out := make([]string, 0, len(ps.userWL))
-	for id := range ps.userWL {
-		out = append(out, id)
+
+	rows, err := ps.db.Query(`SELECT user_id FROM whitelist_users`)
+	if err != nil {
+		log.Println("whitelist list error:", err)
+		return nil
 	}
-	sort.Strings(out)
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			out = append(out, id)
+		}
+	}
 	return out
 }
 
@@ -321,21 +245,17 @@ func (ps *PermStore) IsUserWhitelisted(userID string) bool {
 	if userID == "" {
 		return false
 	}
-	if ps.db != nil {
-		var exists bool
-		// portable exists query
-		row := ps.db.QueryRow(`SELECT 1 FROM whitelist_users WHERE user_id = `+ps.param(1)+` LIMIT 1`, userID)
-		var one int
-		if err := row.Scan(&one); err != nil {
-			return false
-		}
-		exists = one == 1
-		return exists
+	if ps.db == nil {
+		return false
 	}
-	ps.mu.RLock()
-	_, ok := ps.userWL[userID]
-	ps.mu.RUnlock()
-	return ok
+
+	// portable exists query
+	row := ps.db.QueryRow(`SELECT 1 FROM whitelist_users WHERE user_id = `+ps.param(1)+` LIMIT 1`, userID)
+	var one int
+	if err := row.Scan(&one); err != nil {
+		return false
+	}
+	return one == 1
 }
 
 // IsOwner returns true if the user is the configured owner
@@ -398,7 +318,7 @@ func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool
 		return false
 	}
 
-	allowed := ps.ListRoles(i.GuildID) // uses DB if configured
+	allowed := ps.ListRoles(i.GuildID)
 	if len(allowed) == 0 {
 		return false
 	}
@@ -432,102 +352,6 @@ func FormatRoleList(_ *discordgo.Session, _ string, roleIDs []string) string {
 		return "(none configured)"
 	}
 	return strings.Join(mentions, ", ")
-}
-
-// JSON persistence (fallback)
-
-type permJSON struct {
-	GuildRoles    map[string][]string `json:"guild_roles"`
-	UserWhitelist []string            `json:"user_whitelist"`
-}
-
-// SaveToFile writes the current permissions to disk in JSON format with an atomic rename
-func (ps *PermStore) SaveToFile() error {
-	ps.mu.RLock()
-	if ps.filePath == "" || ps.db != nil {
-		ps.mu.RUnlock()
-		return nil
-	}
-
-	data := make(map[string][]string, len(ps.guildRoles))
-	for g, set := range ps.guildRoles {
-		list := make([]string, 0, len(set))
-		for r := range set {
-			list = append(list, r)
-		}
-		sort.Strings(list)
-		data[g] = list
-	}
-	wl := make([]string, 0, len(ps.userWL))
-	for u := range ps.userWL {
-		wl = append(wl, u)
-	}
-	sort.Strings(wl)
-	path := ps.filePath
-	ps.mu.RUnlock()
-
-	payload := permJSON{GuildRoles: data, UserWhitelist: wl}
-	b, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	// Ensure directory exists
-	dir := filepath.Dir(path)
-	if dir != "." && dir != "" {
-		_ = os.MkdirAll(dir, 0o755)
-	}
-
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
-}
-
-// LoadFromFile populates the permissions from a JSON file if it exists
-func (ps *PermStore) LoadFromFile() error {
-	ps.mu.Lock()
-	defer ps.mu.Unlock()
-	if ps.filePath == "" || ps.db != nil {
-		return nil
-	}
-
-	b, err := os.ReadFile(ps.filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-
-	var payload permJSON
-	if err := json.Unmarshal(b, &payload); err != nil {
-		return err
-	}
-
-	ps.guildRoles = make(map[string]map[string]struct{}, len(payload.GuildRoles))
-	for g, list := range payload.GuildRoles {
-		set := make(map[string]struct{}, len(list))
-		for _, r := range list {
-			if strings.TrimSpace(r) == "" {
-				continue
-			}
-			set[r] = struct{}{}
-		}
-		if len(set) > 0 {
-			ps.guildRoles[g] = set
-		}
-	}
-	ps.userWL = make(map[string]struct{}, len(payload.UserWhitelist))
-	for _, u := range payload.UserWhitelist {
-		u = strings.TrimSpace(u)
-		if u == "" {
-			continue
-		}
-		ps.userWL[u] = struct{}{}
-	}
-	return nil
 }
 
 // Helper: dialect param placeholders
