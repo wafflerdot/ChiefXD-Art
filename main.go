@@ -27,30 +27,20 @@ func main() {
 	_ = godotenv.Load()
 
 	// ----------------------------------------
-	// Permissions persistence (DB or JSON fallback)
+	// Permissions persistence
 	// ----------------------------------------
 	dsn := os.Getenv("PERMS_DSN")
 	dialect := os.Getenv("PERMS_DIALECT") // postgres | mysql
-	if dsn != "" {
-		if dialect == "" {
-			dialect = "postgres"
-		}
-		if err := perms.ConfigureDB(dialect, dsn); err != nil {
-			log.Fatalf("permissions DB config failed: %v", err)
-		}
-		log.Printf("permissions: DB configured (dialect=%s)", dialect)
-	} else {
-		permsFile := os.Getenv("PERMS_FILE")
-		if permsFile == "" {
-			permsFile = "permissions.json"
-		}
-		perms.ConfigureFile(permsFile)
-		if err := perms.LoadFromFile(); err != nil {
-			log.Println("failed to load permissions file:", err)
-		} else {
-			log.Println("permissions loaded from:", permsFile)
-		}
+	if dsn == "" {
+		log.Fatal("PERMS_DSN must be set (database connection required)")
 	}
+	if dialect == "" {
+		dialect = "postgres"
+	}
+	if err := perms.ConfigureDB(dialect, dsn); err != nil {
+		log.Fatalf("permissions DB config failed: %v", err)
+	}
+	log.Printf("permissions: DB configured (dialect=%s)", dialect)
 
 	// Initialise thresholds store and load values from DB if present
 	if err := thresholdsStore.Init(perms); err != nil {
