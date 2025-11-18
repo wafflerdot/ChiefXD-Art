@@ -1,4 +1,4 @@
-package main
+package api
 
 // Default thresholds
 const (
@@ -34,51 +34,36 @@ type AdvancedAnalysis struct {
 	MediaURI   string
 }
 
-// AnalyseImageURL runs the API request via sightengine and analyses the result
-func AnalyseImageURL(guildID, imageURL string) (*Analysis, error) {
-	out, err := sightengine(imageURL)
+// AnalyseImageURL runs the API request via Sightengine and analyses the result
+func AnalyseImageURL(guildID, imageURL string, thresholdsGetter func(string) (float64, float64, float64, float64)) (*Analysis, error) {
+	out, err := Sightengine(imageURL)
 	if err != nil {
 		return nil, err
 	}
 	// Normalise raw response into an Analysis struct using guild-specific thresholds
-	ns, ne, off, ai := thresholdsStore.GetGuildThresholds(perms, guildID)
+	ns, ne, off, ai := thresholdsGetter(guildID)
 	a := AnalyseResult(out, ns, ne, off, ai)
 	return a, nil
 }
 
-// AnalyseImageURLAdvanced runs the API request via sightengine and returns full category/subcategory scores
+// AnalyseImageURLAdvanced runs the API request via Sightengine and returns full category/subcategory scores
 func AnalyseImageURLAdvanced(imageURL string) (*AdvancedAnalysis, error) {
-	out, err := sightengine(imageURL)
+	out, err := Sightengine(imageURL)
 	if err != nil {
 		return nil, err
 	}
 	return AnalyseResultAdvanced(out), nil
 }
 
-// AnalyseImageURLAIOnly runs the AI-only API request via sightengine and analyses the result
-func AnalyseImageURLAIOnly(guildID, imageURL string) (*Analysis, error) {
-	out, err := sightengineAIOnly(imageURL)
+// AnalyseImageURLAIOnly runs the AI-only API request via Sightengine and analyses the result
+func AnalyseImageURLAIOnly(guildID, imageURL string, thresholdsGetter func(string) (float64, float64, float64, float64)) (*Analysis, error) {
+	out, err := SightengineAIOnly(imageURL)
 	if err != nil {
 		return nil, err
 	}
-	ns, ne, off, ai := thresholdsStore.GetGuildThresholds(perms, guildID)
+	ns, ne, off, ai := thresholdsGetter(guildID)
 	return AnalyseResult(out, ns, ne, off, ai), nil
 }
-
-// AnalyseTempFile loads a local JSON result (e.g., 'temp.json') and analyses it
-// DEV TESTING ONLY
-//func AnalyseTempFile(path string) (*Analysis, error) {
-//	b, err := os.ReadFile(path)
-//	if err != nil {
-//		return nil, fmt.Errorf("read %s: %w", path, err)
-//	}
-//	var out map[string]any
-//	if err := json.Unmarshal(b, &out); err != nil {
-//		return nil, fmt.Errorf("decode json: %w", err)
-//	}
-//	a := AnalyseResult(out)
-//	return a, nil
-//}
 
 // AnalyseResult converts the raw map into an Analysis summary using provided thresholds
 func AnalyseResult(out map[string]any, nsThresh, neThresh, offThresh, aiThresh float64) *Analysis {

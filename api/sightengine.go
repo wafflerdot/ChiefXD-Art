@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/json"
@@ -11,8 +11,8 @@ import (
 	httputil "ChiefXD-Art/http"
 )
 
-// sightengine calls the Sightengine API with the full model set used by standard/advanced analysis
-func sightengine(imageLink string) (map[string]any, error) {
+// Sightengine calls the Sightengine API with the full model set used by standard/advanced analysis
+func Sightengine(imageLink string) (map[string]any, error) {
 	apiUser := os.Getenv("SIGHTENGINE_USER")
 	apiSecret := os.Getenv("SIGHTENGINE_SECRET")
 	if apiUser == "" || apiSecret == "" {
@@ -53,8 +53,8 @@ func sightengine(imageLink string) (map[string]any, error) {
 	return out, nil
 }
 
-// sightengineAIOnly calls the Sightengine API with the AI detection only model
-func sightengineAIOnly(imageLink string) (map[string]any, error) {
+// SightengineAIOnly calls the Sightengine API with the AI detection only model
+func SightengineAIOnly(imageLink string) (map[string]any, error) {
 	apiUser := os.Getenv("SIGHTENGINE_USER")
 	apiSecret := os.Getenv("SIGHTENGINE_SECRET")
 	if apiUser == "" || apiSecret == "" {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ChiefXD-Art/api"
 	"database/sql"
 	"fmt"
 	"log"
@@ -9,10 +10,10 @@ import (
 
 // Active thresholds (mutable at runtime)
 var (
-	NuditySuggestiveThreshold = DefaultNuditySuggestiveThreshold
-	NudityExplicitThreshold   = DefaultNudityExplicitThreshold
-	OffensiveThreshold        = DefaultOffensiveThreshold
-	AIGeneratedThreshold      = DefaultAIGeneratedThreshold
+	NuditySuggestiveThreshold = api.DefaultNuditySuggestiveThreshold
+	NudityExplicitThreshold   = api.DefaultNudityExplicitThreshold
+	OffensiveThreshold        = api.DefaultOffensiveThreshold
+	AIGeneratedThreshold      = api.DefaultAIGeneratedThreshold
 )
 
 // ThresholdsStore persists active thresholds if a DB is configured.
@@ -142,13 +143,13 @@ func (ts *ThresholdsStore) ResetOne(ps *PermStore, name string) error {
 	var def float64
 	switch name {
 	case "NuditySuggestive":
-		def = DefaultNuditySuggestiveThreshold
+		def = api.DefaultNuditySuggestiveThreshold
 	case "NudityExplicit":
-		def = DefaultNudityExplicitThreshold
+		def = api.DefaultNudityExplicitThreshold
 	case "Offensive":
-		def = DefaultOffensiveThreshold
+		def = api.DefaultOffensiveThreshold
 	case "AIGenerated":
-		def = DefaultAIGeneratedThreshold
+		def = api.DefaultAIGeneratedThreshold
 	default:
 		return fmt.Errorf("unknown threshold: %s", name)
 	}
@@ -157,16 +158,16 @@ func (ts *ThresholdsStore) ResetOne(ps *PermStore, name string) error {
 
 // ResetAll resets all thresholds to their default values and persists if DB
 func (ts *ThresholdsStore) ResetAll(ps *PermStore) error {
-	if err := ts.Set(ps, "NuditySuggestive", DefaultNuditySuggestiveThreshold); err != nil {
+	if err := ts.Set(ps, "NuditySuggestive", api.DefaultNuditySuggestiveThreshold); err != nil {
 		return err
 	}
-	if err := ts.Set(ps, "NudityExplicit", DefaultNudityExplicitThreshold); err != nil {
+	if err := ts.Set(ps, "NudityExplicit", api.DefaultNudityExplicitThreshold); err != nil {
 		return err
 	}
-	if err := ts.Set(ps, "Offensive", DefaultOffensiveThreshold); err != nil {
+	if err := ts.Set(ps, "Offensive", api.DefaultOffensiveThreshold); err != nil {
 		return err
 	}
-	if err := ts.Set(ps, "AIGenerated", DefaultAIGeneratedThreshold); err != nil {
+	if err := ts.Set(ps, "AIGenerated", api.DefaultAIGeneratedThreshold); err != nil {
 		return err
 	}
 	return nil
@@ -297,10 +298,10 @@ func (ts *ThresholdsStore) ensureGuildTable(ps *PermStore) error {
 // GetGuildThresholds returns the active thresholds for a guild, with fallback to global table, else defaults
 func (ts *ThresholdsStore) GetGuildThresholds(ps *PermStore, guildID string) (float64, float64, float64, float64) {
 	// defaults
-	ns := DefaultNuditySuggestiveThreshold
-	ne := DefaultNudityExplicitThreshold
-	off := DefaultOffensiveThreshold
-	ai := DefaultAIGeneratedThreshold
+	ns := api.DefaultNuditySuggestiveThreshold
+	ne := api.DefaultNudityExplicitThreshold
+	off := api.DefaultOffensiveThreshold
+	ai := api.DefaultAIGeneratedThreshold
 
 	if ps == nil || ps.db == nil || guildID == "" {
 		return ns, ne, off, ai
@@ -337,19 +338,19 @@ func (ts *ThresholdsStore) GetGuildThresholds(ps *PermStore, guildID string) (fl
 			if err := glob.Scan(&name, &v); err == nil {
 				switch name {
 				case "NuditySuggestive":
-					if ns == DefaultNuditySuggestiveThreshold {
+					if ns == api.DefaultNuditySuggestiveThreshold {
 						ns = v
 					}
 				case "NudityExplicit":
-					if ne == DefaultNudityExplicitThreshold {
+					if ne == api.DefaultNudityExplicitThreshold {
 						ne = v
 					}
 				case "Offensive":
-					if off == DefaultOffensiveThreshold {
+					if off == api.DefaultOffensiveThreshold {
 						off = v
 					}
 				case "AIGenerated":
-					if ai == DefaultAIGeneratedThreshold {
+					if ai == api.DefaultAIGeneratedThreshold {
 						ai = v
 					}
 				}
@@ -386,13 +387,13 @@ func (ts *ThresholdsStore) ResetOneGuild(ps *PermStore, guildID, name string) er
 	var def float64
 	switch name {
 	case "NuditySuggestive":
-		def = DefaultNuditySuggestiveThreshold
+		def = api.DefaultNuditySuggestiveThreshold
 	case "NudityExplicit":
-		def = DefaultNudityExplicitThreshold
+		def = api.DefaultNudityExplicitThreshold
 	case "Offensive":
-		def = DefaultOffensiveThreshold
+		def = api.DefaultOffensiveThreshold
 	case "AIGenerated":
-		def = DefaultAIGeneratedThreshold
+		def = api.DefaultAIGeneratedThreshold
 	default:
 		return fmt.Errorf("unknown threshold: %s", name)
 	}
@@ -401,16 +402,16 @@ func (ts *ThresholdsStore) ResetOneGuild(ps *PermStore, guildID, name string) er
 
 // ResetAllGuild resets all thresholds for a guild to defaults
 func (ts *ThresholdsStore) ResetAllGuild(ps *PermStore, guildID string) error {
-	if err := ts.SetGuild(ps, guildID, "NuditySuggestive", DefaultNuditySuggestiveThreshold); err != nil {
+	if err := ts.SetGuild(ps, guildID, "NuditySuggestive", api.DefaultNuditySuggestiveThreshold); err != nil {
 		return err
 	}
-	if err := ts.SetGuild(ps, guildID, "NudityExplicit", DefaultNudityExplicitThreshold); err != nil {
+	if err := ts.SetGuild(ps, guildID, "NudityExplicit", api.DefaultNudityExplicitThreshold); err != nil {
 		return err
 	}
-	if err := ts.SetGuild(ps, guildID, "Offensive", DefaultOffensiveThreshold); err != nil {
+	if err := ts.SetGuild(ps, guildID, "Offensive", api.DefaultOffensiveThreshold); err != nil {
 		return err
 	}
-	if err := ts.SetGuild(ps, guildID, "AIGenerated", DefaultAIGeneratedThreshold); err != nil {
+	if err := ts.SetGuild(ps, guildID, "AIGenerated", api.DefaultAIGeneratedThreshold); err != nil {
 		return err
 	}
 	return nil
@@ -492,13 +493,13 @@ func (ts *ThresholdsStore) HistoryFilteredForGuild(ps *PermStore, guildID, name 
 func defaultThresholdValue(name string) float64 {
 	switch name {
 	case "NuditySuggestive":
-		return DefaultNuditySuggestiveThreshold
+		return api.DefaultNuditySuggestiveThreshold
 	case "NudityExplicit":
-		return DefaultNudityExplicitThreshold
+		return api.DefaultNudityExplicitThreshold
 	case "Offensive":
-		return DefaultOffensiveThreshold
+		return api.DefaultOffensiveThreshold
 	case "AIGenerated":
-		return DefaultAIGeneratedThreshold
+		return api.DefaultAIGeneratedThreshold
 	default:
 		return 0
 	}
