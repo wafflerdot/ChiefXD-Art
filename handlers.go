@@ -3,9 +3,21 @@ package main
 import (
 	"ChiefXD-Art/commands"
 	"log"
+	"sync/atomic"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+// startupComplete is set to true after bot initialization is complete
+// This prevents onGuildCreate from running during initial guild sync
+var startupComplete atomic.Bool
+
+// StartupComplete signals that bot initialization is done
+// and onGuildCreate should start processing new guild joins
+func StartupComplete() {
+	startupComplete.Store(true)
+	log.Println("Bot startup complete - now listening for new guild joins")
+}
 
 // registerHandlers wires all slash command handlers onto the session
 func registerHandlers(sess *discordgo.Session) {
@@ -52,9 +64,15 @@ func registerHandlers(sess *discordgo.Session) {
 // Guild Join Handler
 // -------------------------
 // onGuildCreate is triggered when the bot joins a new guild or when the bot starts up
-// and syncs all guilds. We register commands to the guild for instant availability.
+// and syncs all guilds. We only process this after startup is complete to avoid
+// registering commands for existing guilds (which is handled in main).
 func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
-	log.Printf("Bot joined or synced with guild: %s (%s)", event.Guild.Name, event.Guild.ID)
+	// Skip if bot is still initializing
+	if !startupComplete.Load() {
+		return
+	}
+
+	log.Printf("Bot joined new guild: %s (%s)", event.Guild.Name, event.Guild.ID)
 
 	// Register all commands to this guild for instant availability
 	if globalRegister {

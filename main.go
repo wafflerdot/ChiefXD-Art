@@ -86,6 +86,9 @@ func main() {
 	registerCommands(sess)
 	globalRegister = true
 
+	// Mark startup as complete - onGuildCreate will now process new guild joins
+	StartupComplete()
+
 	// ----------------------------------------
 	// Block until termination, then graceful shutdown
 	// ----------------------------------------
