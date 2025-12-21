@@ -75,9 +75,6 @@ func RegisterWhitelist(s *discordgo.Session, appID, guildID string) error {
 
 // HandleWhitelist handles the /whitelist command interaction
 func HandleWhitelist(s *discordgo.Session, i *discordgo.InteractionCreate, perms PermissionChecker, isOwner func(string) bool, invokingUserID func(*discordgo.InteractionCreate) string, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "whitelist" {
-		return
-	}
 	if !isOwner(invokingUserID(i)) {
 		_ = RespondEphemeral(s, i, "Only the bot owner can manage the whitelist")
 		return
@@ -216,9 +213,6 @@ func BuildWhitelistPageEmbed(s *discordgo.Session, ids []string, page, pageSize 
 
 // HandleWhitelistComponents handles component interactions for whitelist pagination
 func HandleWhitelistComponents(s *discordgo.Session, i *discordgo.InteractionCreate, perms PermissionChecker, isOwner func(string) bool, invokingUserID func(*discordgo.InteractionCreate) string, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionMessageComponent || i.Message == nil || i.Message.Components == nil {
-		return
-	}
 	cid := i.MessageComponentData().CustomID
 	if !strings.HasPrefix(cid, "wl_") {
 		return

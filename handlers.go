@@ -27,36 +27,35 @@ func registerHandlers(sess *discordgo.Session) {
 	// Register commands when bot joins a new guild
 	sess.AddHandler(onGuildCreate)
 
-	// Command handlers
+	// Command handler dispatcher
 	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandlePermissions(s, i, perms, IsOwner, HasAdminContextPermission, invokingUserID, commands.FormatRoleList, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleAnalyse(s, i, perms, &analysisAdapter{}, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleAI(s, i, perms, &analysisAdapter{}, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandlePing(s, i, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleHelp(s, i, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleThresholds(s, i, perms, &thresholdsAdapter{ps: perms}, IsOwner, HasAdminContextPermission, invokingUserID, defaultThresholdValue, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleReverse(s, i, &reverseAdapter{}, IsOwner, invokingUserID, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleWhitelist(s, i, perms, IsOwner, invokingUserID, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleWhitelistComponents(s, i, perms, IsOwner, invokingUserID, FooterText, FooterIconURL)
-	})
-	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		commands.HandleWaffle(s, i, IsOwner, invokingUserID)
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			// Route to the appropriate command handler based on command name
+			switch i.ApplicationCommandData().Name {
+			case "ping":
+				commands.HandlePing(s, i, FooterText, FooterIconURL)
+			case "help":
+				commands.HandleHelp(s, i, FooterText, FooterIconURL)
+			case "analyse":
+				commands.HandleAnalyse(s, i, perms, &analysisAdapter{}, FooterText, FooterIconURL)
+			case "ai":
+				commands.HandleAI(s, i, perms, &analysisAdapter{}, FooterText, FooterIconURL)
+			case "permissions":
+				commands.HandlePermissions(s, i, perms, IsOwner, HasAdminContextPermission, invokingUserID, commands.FormatRoleList, FooterText, FooterIconURL)
+			case "thresholds":
+				commands.HandleThresholds(s, i, perms, &thresholdsAdapter{ps: perms}, IsOwner, HasAdminContextPermission, invokingUserID, defaultThresholdValue, FooterText, FooterIconURL)
+			case "reverse":
+				commands.HandleReverse(s, i, &reverseAdapter{}, IsOwner, invokingUserID, FooterText, FooterIconURL)
+			case "whitelist":
+				commands.HandleWhitelist(s, i, perms, IsOwner, invokingUserID, FooterText, FooterIconURL)
+			case "waffle":
+				commands.HandleWaffle(s, i, IsOwner, invokingUserID)
+			}
+		case discordgo.InteractionMessageComponent:
+			// Handle component interactions (buttons, etc.)
+			commands.HandleWhitelistComponents(s, i, perms, IsOwner, invokingUserID, FooterText, FooterIconURL)
+		}
 	})
 }
 

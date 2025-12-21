@@ -43,9 +43,6 @@ func RegisterAI(s *discordgo.Session, appID, guildID string) error {
 
 // HandleAI handles the /ai command interaction
 func HandleAI(s *discordgo.Session, i *discordgo.InteractionCreate, perms PermissionChecker, analyser ImageAnalyser, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "ai" {
-		return
-	}
 	if !perms.IsAllowedForRestricted(i) {
 		_ = RespondEphemeral(s, i, "You don't have permission to use this command.")
 		return

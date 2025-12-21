@@ -42,9 +42,6 @@ func RegisterWaffle(s *discordgo.Session, appID, guildID string) error {
 
 // HandleWaffle handles the /waffle command interaction
 func HandleWaffle(s *discordgo.Session, i *discordgo.InteractionCreate, isOwner func(string) bool, invokingUserID func(*discordgo.InteractionCreate) string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "waffle" {
-		return
-	}
 	if !isOwner(invokingUserID(i)) {
 		_ = RespondEphemeral(s, i, "Only the bot owner can use this command")
 		return

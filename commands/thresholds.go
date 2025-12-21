@@ -100,9 +100,6 @@ func RegisterThresholds(s *discordgo.Session, appID, guildID string) error {
 
 // HandleThresholds handles the /thresholds command interaction
 func HandleThresholds(s *discordgo.Session, i *discordgo.InteractionCreate, perms PermissionChecker, thresholds ThresholdStore, isOwner func(string) bool, hasAdminPerm func(*discordgo.InteractionCreate) bool, invokingUserID func(*discordgo.InteractionCreate) string, defaultThresholdValue func(string) float64, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "thresholds" {
-		return
-	}
 
 	data := i.ApplicationCommandData()
 	guildID := i.GuildID

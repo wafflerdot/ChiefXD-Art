@@ -38,9 +38,6 @@ func RegisterPing(s *discordgo.Session, appID, guildID string) error {
 
 // HandlePing handles the /ping command interaction
 func HandlePing(s *discordgo.Session, i *discordgo.InteractionCreate, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "ping" {
-		return
-	}
 	start := time.Now()
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
 		log.Println("failed to defer ping:", err)

@@ -36,9 +36,6 @@ func RegisterHelp(s *discordgo.Session, appID, guildID string) error {
 
 // HandleHelp handles the /help command interaction
 func HandleHelp(s *discordgo.Session, i *discordgo.InteractionCreate, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "help" {
-		return
-	}
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
 		log.Println("failed to defer help:", err)
 		return

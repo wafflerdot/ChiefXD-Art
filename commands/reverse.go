@@ -43,9 +43,6 @@ func RegisterReverse(s *discordgo.Session, appID, guildID string) error {
 
 // HandleReverse handles the /reverse command interaction
 func HandleReverse(s *discordgo.Session, i *discordgo.InteractionCreate, reverseSearcher ReverseSearcher, isOwner func(string) bool, invokingUserID func(*discordgo.InteractionCreate) string, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "reverse" {
-		return
-	}
 	// Make this command owner-only
 	if !isOwner(invokingUserID(i)) {
 		_ = RespondEphemeral(s, i, "Only the bot owner can use this command.")

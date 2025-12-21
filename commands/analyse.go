@@ -50,9 +50,6 @@ func RegisterAnalyse(s *discordgo.Session, appID, guildID string) error {
 
 // HandleAnalyse handles the /analyse command interaction
 func HandleAnalyse(s *discordgo.Session, i *discordgo.InteractionCreate, perms PermissionChecker, analyser ImageAnalyser, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "analyse" {
-		return
-	}
 	if !perms.IsAllowedForRestricted(i) {
 		_ = RespondEphemeral(s, i, "You don't have permission to use this command.")
 		return

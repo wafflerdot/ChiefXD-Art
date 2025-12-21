@@ -61,9 +61,6 @@ func RegisterPermissions(s *discordgo.Session, appID, guildID string) error {
 
 // HandlePermissions handles the /permissions command interaction
 func HandlePermissions(s *discordgo.Session, i *discordgo.InteractionCreate, perms PermissionChecker, isOwner func(string) bool, hasAdminPerm func(*discordgo.InteractionCreate) bool, invokingUserID func(*discordgo.InteractionCreate) string, formatRoleList func(*discordgo.Session, string, []string) string, footerText, footerIconURL string) {
-	if i.Type != discordgo.InteractionApplicationCommand || i.ApplicationCommandData().Name != "permissions" {
-		return
-	}
 
 	// Only owner or admins can manage permissions
 	if !(isOwner(invokingUserID(i)) || hasAdminPerm(i)) {
