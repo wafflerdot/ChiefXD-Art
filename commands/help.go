@@ -36,10 +36,6 @@ func RegisterHelp(s *discordgo.Session, appID, guildID string) error {
 
 // HandleHelp handles the /help command interaction
 func HandleHelp(s *discordgo.Session, i *discordgo.InteractionCreate, footerText, footerIconURL string) {
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseDeferredChannelMessageWithSource}); err != nil {
-		log.Println("failed to defer help:", err)
-		return
-	}
 	embed := &discordgo.MessageEmbed{Title: "Help", Description: "Available commands", Color: 0x5865F2,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "/ai", Value: "Checks an Image URL for AI usage\nArguments: `image_url` (required)", Inline: false},
@@ -52,5 +48,14 @@ func HandleHelp(s *discordgo.Session, i *discordgo.InteractionCreate, footerText
 			{Name: "/whitelist", Value: "Manage DM whitelist (owner only). Subcommands: `add <user>`, `remove <user>`, `list`", Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: footerText, IconURL: footerIconURL}}
-	_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{Embeds: &[]*discordgo.MessageEmbed{embed}})
+
+	// Use immediate response (single API call) instead of defer + edit (two API calls)
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{embed},
+		},
+	}); err != nil {
+		log.Println("failed to respond to help:", err)
+	}
 }

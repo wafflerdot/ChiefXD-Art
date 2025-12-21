@@ -47,11 +47,11 @@ func HandlePing(s *discordgo.Session, i *discordgo.InteractionCreate, footerText
 	gw := s.HeartbeatLatency()
 	embed := &discordgo.MessageEmbed{Title: "Pong!", Color: 0xFFC107,
 		Fields: []*discordgo.MessageEmbedField{{
-			Name:   "Response time",
+			Name:   "Discord API latency",
 			Value:  fmt.Sprintf("%d ms", rtt.Milliseconds()),
 			Inline: true,
 		},
-			{Name: "API latency",
+			{Name: "Gateway latency",
 				Value:  fmt.Sprintf("%d ms", gw.Milliseconds()),
 				Inline: true,
 			},
