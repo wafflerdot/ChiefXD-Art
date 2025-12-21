@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	_ "github.com/go-sql-driver/mysql"
@@ -31,9 +33,15 @@ const (
 // PermStore keeps the list of allowed role IDs per guild
 // and a global user whitelist for DM usage.
 // Backing storage: SQL database (PostgreSQL or MySQL)
+// Includes in-memory caching for fast permission checks
 type PermStore struct {
 	db      *sql.DB
 	dialect string
+
+	// In-memory caches to avoid DB round-trips on every command
+	rolesCache     sync.Map // guildID -> []string (role IDs)
+	whitelistCache sync.Map // userID -> bool
+	whitelistOnce  sync.Once
 }
 
 func NewPermStore() *PermStore {
@@ -53,6 +61,12 @@ func (ps *PermStore) ConfigureDB(dialect, dsn string) error {
 		_ = db.Close()
 		return fmt.Errorf("ping db: %w", err)
 	}
+
+	// Configure connection pool for better performance
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute)
 
 	ps.db = db
 	ps.dialect = dialect
@@ -115,6 +129,8 @@ func (ps *PermStore) AddRole(guildID, roleID string) {
 	if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
 		log.Println("permissions db insert error:", err)
 	}
+	// Invalidate cache for this guild
+	ps.rolesCache.Delete(guildID)
 }
 
 // RemoveRole removes a role from the allowed set for a guild and persists
@@ -134,10 +150,17 @@ func (ps *PermStore) RemoveRole(guildID, roleID string) {
 	if _, err := ps.db.Exec(sqlStmt, guildID, roleID); err != nil {
 		log.Println("permissions db delete error:", err)
 	}
+	// Invalidate cache for this guild
+	ps.rolesCache.Delete(guildID)
 }
 
 // ListRoles returns a copy of the allowed role IDs for a guild
 func (ps *PermStore) ListRoles(guildID string) []string {
+	// Check cache first
+	if cached, ok := ps.rolesCache.Load(guildID); ok {
+		return cached.([]string)
+	}
+
 	if ps.db == nil {
 		log.Println("permissions: database not configured")
 		return nil
@@ -167,6 +190,9 @@ func (ps *PermStore) ListRoles(guildID string) []string {
 		}
 		out = append(out, roleID)
 	}
+
+	// Store in cache
+	ps.rolesCache.Store(guildID, out)
 	return out
 }
 
@@ -190,7 +216,10 @@ func (ps *PermStore) AddWhitelistedUser(userID string) {
 	}
 	if _, err := ps.db.Exec(stmt, userID); err != nil {
 		log.Println("whitelist insert error:", err)
+		return
 	}
+	// Update cache
+	ps.whitelistCache.Store(userID, true)
 }
 
 // RemoveWhitelistedUser removes a user ID from the global DM whitelist
@@ -213,7 +242,10 @@ func (ps *PermStore) RemoveWhitelistedUser(userID string) {
 	}
 	if _, err := ps.db.Exec(stmt, userID); err != nil {
 		log.Println("whitelist delete error:", err)
+		return
 	}
+	// Update cache
+	ps.whitelistCache.Store(userID, false)
 }
 
 // ListWhitelistedUsers returns a slice of whitelisted user IDs
@@ -234,9 +266,20 @@ func (ps *PermStore) ListWhitelistedUsers() []string {
 		var id string
 		if err := rows.Scan(&id); err == nil {
 			out = append(out, id)
+			// Also warm the cache
+			ps.whitelistCache.Store(id, true)
 		}
 	}
 	return out
+}
+
+// WarmWhitelistCache pre-loads the whitelist cache from the database
+// Call this once at startup for optimal first-request latency
+func (ps *PermStore) WarmWhitelistCache() {
+	ps.whitelistOnce.Do(func() {
+		users := ps.ListWhitelistedUsers()
+		log.Printf("permissions: warmed whitelist cache with %d users", len(users))
+	})
 }
 
 // IsUserWhitelisted checks if the userID is in the global DM whitelist
@@ -245,16 +288,24 @@ func (ps *PermStore) IsUserWhitelisted(userID string) bool {
 	if userID == "" {
 		return false
 	}
+
+	// Check cache first
+	if cached, ok := ps.whitelistCache.Load(userID); ok {
+		return cached.(bool)
+	}
+
 	if ps.db == nil {
 		return false
 	}
 
-	// portable exists query
+	// Query DB and cache result
 	row := ps.db.QueryRow(`SELECT 1 FROM whitelist_users WHERE user_id = `+ps.param(1)+` LIMIT 1`, userID)
 	var one int
 	if err := row.Scan(&one); err != nil {
+		ps.whitelistCache.Store(userID, false)
 		return false
 	}
+	ps.whitelistCache.Store(userID, one == 1)
 	return one == 1
 }
 

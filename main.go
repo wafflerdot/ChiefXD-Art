@@ -42,6 +42,9 @@ func main() {
 	}
 	log.Printf("permissions: DB configured (dialect=%s)", dialect)
 
+	// Pre-warm caches for optimal first-request latency
+	perms.WarmWhitelistCache()
+
 	// Initialise thresholds store and load values from DB if present
 	if err := thresholdsStore.Init(perms); err != nil {
 		log.Println("thresholds init error:", err)
