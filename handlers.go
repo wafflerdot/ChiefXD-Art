@@ -29,14 +29,25 @@ func registerHandlers(sess *discordgo.Session) {
 
 	// Command handler dispatcher
 	sess.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.GuildID == "" && !IsOwner(invokingUserID(i)) {
+			_ = commands.RespondEphemeral(s, i, "This command is only available to bot owners in DMs")
+			return
+		}
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
+			if dbLessMode {
+				switch i.ApplicationCommandData().Name {
+				case "permissions", "thresholds", "whitelist":
+					_ = commands.RespondEphemeral(s, i, "This command is disabled when PERMS_DBLESS is enabled.")
+					return
+				}
+			}
 			// Route to the appropriate command handler based on command name
 			switch i.ApplicationCommandData().Name {
 			case "ping":
 				commands.HandlePing(s, i, FooterText, FooterIconURL)
 			case "help":
-				commands.HandleHelp(s, i, FooterText, FooterIconURL)
+				commands.HandleHelp(s, i, FooterText, FooterIconURL, dbLessMode)
 			case "analyse":
 				commands.HandleAnalyse(s, i, perms, &analysisAdapter{}, FooterText, FooterIconURL)
 			case "ai":
@@ -53,6 +64,10 @@ func registerHandlers(sess *discordgo.Session) {
 				commands.HandleWaffle(s, i, IsOwner, invokingUserID)
 			}
 		case discordgo.InteractionMessageComponent:
+			if dbLessMode {
+				_ = commands.RespondEphemeral(s, i, "This command is disabled when PERMS_DBLESS is enabled.")
+				return
+			}
 			// Handle component interactions (buttons, etc.)
 			commands.HandleWhitelistComponents(s, i, perms, IsOwner, invokingUserID, FooterText, FooterIconURL)
 		}

@@ -20,8 +20,9 @@ const OwnerID = "757284149793914900"
 
 // Permission bit flags (subset used)
 const (
-	PermAdministrator = 1 << 3 // 0x00000008
-	PermManageGuild   = 1 << 5 // 0x00000020
+	PermAdministrator = 1 << 3  // 0x00000008
+	PermManageGuild   = 1 << 5  // 0x00000020
+	PermManageRoles   = 1 << 28 // 0x10000000
 )
 
 // Supported DB dialects
@@ -288,6 +289,9 @@ func (ps *PermStore) IsUserWhitelisted(userID string) bool {
 	if userID == "" {
 		return false
 	}
+	if dbLessMode {
+		return false
+	}
 
 	// Check cache first
 	if cached, ok := ps.whitelistCache.Load(userID); ok {
@@ -347,15 +351,29 @@ func HasAdminContextPermission(i *discordgo.InteractionCreate) bool {
 func (ps *PermStore) IsAllowedForRestricted(i *discordgo.InteractionCreate) bool {
 	userID := invokingUserID(i)
 
-	// DMs: allow owner or whitelisted users
+	// DMs: allow owner only in DB-less mode, otherwise owner or whitelisted users
 	if i.GuildID == "" {
+		if dbLessMode {
+			return IsOwner(userID)
+		}
 		return IsOwner(userID) || ps.IsUserWhitelisted(userID)
 	}
 
-	// Owner or admin in this context
+	// Owner override
 	if IsOwner(userID) {
 		return true
 	}
+
+	// DB-less mode uses Discord permissions only (Manage Roles or Administrator)
+	if dbLessMode {
+		if i.Member == nil {
+			return false
+		}
+		permsVal := i.Member.Permissions
+		return (permsVal&PermManageRoles) != 0 || (permsVal&PermAdministrator) != 0
+	}
+
+	// Admin in this context
 	if HasAdminContextPermission(i) {
 		return true
 	}

@@ -74,10 +74,12 @@ func createAllCommands(sess *discordgo.Session, appID, guildID string) {
 	_ = commands.RegisterAnalyse(sess, appID, guildID)
 	_ = commands.RegisterPing(sess, appID, guildID)
 	_ = commands.RegisterHelp(sess, appID, guildID)
-	_ = commands.RegisterThresholds(sess, appID, guildID)
 	_ = commands.RegisterAI(sess, appID, guildID)
 	_ = commands.RegisterReverse(sess, appID, guildID)
-	_ = commands.RegisterPermissions(sess, appID, guildID)
-	_ = commands.RegisterWhitelist(sess, appID, guildID)
 	_ = commands.RegisterWaffle(sess, appID, guildID)
+	if !dbLessMode {
+		_ = commands.RegisterThresholds(sess, appID, guildID)
+		_ = commands.RegisterPermissions(sess, appID, guildID)
+		_ = commands.RegisterWhitelist(sess, appID, guildID)
+	}
 }

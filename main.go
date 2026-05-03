@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,34 +21,40 @@ const (
 )
 
 var globalRegister bool
+var dbLessMode bool
 
 func main() {
 	globalRegister = false
 	// Load environment variables from .env
 	_ = godotenv.Load()
+	dbLessMode = envBool("PERMS_DBLESS")
 
 	// ----------------------------------------
 	// Permissions persistence
 	// ----------------------------------------
-	dsn := os.Getenv("PERMS_DSN")
-	dialect := os.Getenv("PERMS_DIALECT") // postgres | mysql
-	if dsn == "" {
-		log.Fatal("PERMS_DSN must be set (database connection required)")
-	}
-	if dialect == "" {
-		dialect = "postgres"
-	}
-	if err := perms.ConfigureDB(dialect, dsn); err != nil {
-		log.Fatalf("permissions DB config failed: %v", err)
-	}
-	log.Printf("permissions: DB configured (dialect=%s)", dialect)
+	if dbLessMode {
+		log.Println("permissions: DB-less mode enabled; using Discord permissions only")
+	} else {
+		dsn := os.Getenv("PERMS_DSN")
+		dialect := os.Getenv("PERMS_DIALECT") // postgres | mysql
+		if dsn == "" {
+			log.Fatal("PERMS_DSN must be set (database connection required)")
+		}
+		if dialect == "" {
+			dialect = "postgres"
+		}
+		if err := perms.ConfigureDB(dialect, dsn); err != nil {
+			log.Fatalf("permissions DB config failed: %v", err)
+		}
+		log.Printf("permissions: DB configured (dialect=%s)", dialect)
 
-	// Pre-warm caches for optimal first-request latency
-	perms.WarmWhitelistCache()
+		// Pre-warm caches for optimal first-request latency
+		perms.WarmWhitelistCache()
 
-	// Initialise thresholds store and load values from DB if present
-	if err := thresholdsStore.Init(perms); err != nil {
-		log.Println("thresholds init error:", err)
+		// Initialise thresholds store and load values from DB if present
+		if err := thresholdsStore.Init(perms); err != nil {
+			log.Println("thresholds init error:", err)
+		}
 	}
 
 	// ----------------------------------------
@@ -102,4 +109,17 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = httputil.Shutdown(ctx)
+}
+
+func envBool(name string) bool {
+	v := strings.TrimSpace(os.Getenv(name))
+	if v == "" {
+		return false
+	}
+	switch strings.ToLower(v) {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }

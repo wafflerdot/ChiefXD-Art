@@ -15,6 +15,7 @@ A Discord bot written in Go that analyses images using Sightengine, with standar
 - DB-backed storage (Postgres or MySQL) - stores permissions + per-guild thresholds + history
 - Cloud Run friendly: health endpoints, PORT usage, containerised via `Dockerfile`
 - Reverse image search integration (google-reverse-image-api): POST-only client with simple, structured output ready for embeds
+- DB-less mode (optional) for Discord-native permissions only (Manage Roles in guilds, owner-only in DMs)
 
 ## Slash Commands
 - `/analyse image_url:<URL> [advanced:boolean]`
@@ -51,7 +52,9 @@ Restricted commands: `/analyse`, `/ai`, `/permissions`, `/thresholds` (set/reset
 ## Permissions and storage
 - DB-backed: `PERMS_DSN` (connection string) + `PERMS_DIALECT` (`postgres` or `mysql`). The bot creates necessary tables for permissions, thresholds, and history.
 - The permissions store controls which roles can use restricted commands. Owner (`OWNER_ID`) and server admins retain override access.
-- Role mentions returned by the bot are formatted as Discord role mentions: `<@&ROLEID>` (so they appear as clickable mentions in Discord).
+- DB-less: set `PERMS_DBLESS=true` to disable permissions/whitelist/thresholds and use Discord permissions only.
+  - In guilds, users with Manage Roles (or Administrator) can run restricted commands.
+  - In DMs, only the bot owner can use commands.
 
 ## Environment Variables / Configuration
 Required for normal operation:
@@ -65,6 +68,7 @@ Optional / recommended:
 - `PORT` — HTTP port for health endpoints (Cloud Run sets this automatically; default `8080`)
 
 Permissions/DB:
+- `PERMS_DBLESS` — if `true`, disables DB-backed permissions/whitelist/thresholds and uses Discord permissions only
 - `PERMS_DIALECT` — `postgres` or `mysql` (default: `postgres`) when using DB
 - `PERMS_DSN` — database connection string when using DB
 - `PERMS_FILE` — path to JSON file for JSON-backed permissions storage (dev)
