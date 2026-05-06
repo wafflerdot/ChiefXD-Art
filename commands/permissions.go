@@ -7,7 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// RegisterPermissions registers the /permissions command definition
+// RegisterPermissions registers the /permissions command
 func RegisterPermissions(s *discordgo.Session, appID, guildID string) error {
 	scope := "global"
 	if guildID != "" {
