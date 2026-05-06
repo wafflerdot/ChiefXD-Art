@@ -46,7 +46,7 @@ func HandleWaffle(s *discordgo.Session, i *discordgo.InteractionCreate, isOwner 
 		_ = RespondEphemeral(s, i, "Only the bot owner can use this command")
 		return
 	}
-	// Extract the message option
+	// Extract message option
 	var msg string
 	for _, opt := range i.ApplicationCommandData().Options {
 		if opt.Name == "message" {
@@ -60,13 +60,13 @@ func HandleWaffle(s *discordgo.Session, i *discordgo.InteractionCreate, isOwner 
 
 	// Acknowledge ephemerally, then send the plain message to the channel
 	if err := RespondEphemeral(s, i, "Message sent."); err != nil {
-		// Fallback: if ephemeral isn't allowed (e.g., in DMs), acknowledge normally
+		// Fallback if ephemeral response is unavailable
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{Content: "Message sent."},
 		})
 	}
-	// Now send the message content unmodified as a normal message
+	// Send the message content unmodified as a normal message
 	if _, err := s.ChannelMessageSend(i.ChannelID, msg); err != nil {
 		log.Println("failed to send waffle message:", err)
 	}
