@@ -50,7 +50,7 @@ func HandleHelp(s *discordgo.Session, i *discordgo.InteractionCreate, footerText
 			&discordgo.MessageEmbedField{Name: "/whitelist", Value: "Manage DM whitelist (owner only). Subcommands: `add <user>`, `remove <user>`, `list`", Inline: false},
 		)
 	}
-	embed := &discordgo.MessageEmbed{Title: "Help", Description: "Available commands", Color: 0x5865F2,
+	embed := &discordgo.MessageEmbed{Title: "Help", Description: "Available commands\n\n[Privacy Policy](https://github.com/wafflerdot/ChiefXD-Art/blob/d21bb17d85fd53916fa11f8924ba1a30de793c29/legal/privacypolicy.md)", Color: 0x5865F2,
 		Fields: fields, Footer: &discordgo.MessageEmbedFooter{Text: footerText, IconURL: footerIconURL}}
 
 	// Use immediate response (single API call) instead of defer + edit (two API calls)
