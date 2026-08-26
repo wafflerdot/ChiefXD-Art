@@ -229,13 +229,13 @@ func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, image
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title:       "AI-generated image alert",
-		Description: fmt.Sprintf("AI screening flagged media posted in <#%s>.", monitoredChannelID),
+		Title:       "AI Generated Image Detected",
+		Description: fmt.Sprintf("Automated AI screening flagged media posted in <#%s>.", monitoredChannelID),
 		Color:       0xFF4D4D,
 		Image:       &discordgo.MessageEmbedImage{URL: imageURL},
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "Author", Value: fmt.Sprintf("<@%s>", m.Author.ID), Inline: true},
-			{Name: "AI Score", Value: fmt.Sprintf("%.2f / %.2f", score, api.DefaultAIGeneratedThreshold), Inline: true},
+			{Name: "AI Score", Value: fmt.Sprintf("%.2f / 1.00", score), Inline: true},
 			{Name: "Jump", Value: fmt.Sprintf("[Open message](https://discord.com/channels/%s/%s/%s)", monitoredGuildID, monitoredChannelID, m.ID), Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL},
