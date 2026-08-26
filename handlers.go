@@ -1,12 +1,29 @@
 package main
 
 import (
+	"ChiefXD-Art/api"
 	"ChiefXD-Art/commands"
+	"fmt"
 	"log"
+	"regexp"
+	"strings"
 	"sync/atomic"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+const (
+	monitoredGuildID   = "1246210655715856546"
+	monitoredChannelID = "1541977578234187859"
+	// 800047499904679936, 818805988311302166
+	alertsChannelID = "1541977567995887736"
+)
+
+var whitelistedRoleIDs = map[string]struct{}{
+	"1374151190320779284": {},
+}
+
+var imageURLPattern = regexp.MustCompile(`https?://[^\s)>'"]+`)
 
 // startupComplete is set to true after bot initialization is complete
 // This prevents onGuildCreate from running during initial guild sync
@@ -23,6 +40,9 @@ func StartupComplete() {
 func registerHandlers(sess *discordgo.Session) {
 	// Apply Rich Presence on READY
 	sess.AddHandler(onReadySetPresence)
+
+	// Monitor the configured guild/channel for media uploads and AI alerts
+	sess.AddHandler(onMessageCreateMonitor)
 
 	// Register commands when bot joins a new guild
 	sess.AddHandler(onGuildCreate)
@@ -95,6 +115,134 @@ func onGuildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 			createAllCommands(s, appID, event.Guild.ID)
 			log.Printf("Commands registered for guild: %s", event.Guild.ID)
 		}()
+	}
+}
+
+func onMessageCreateMonitor(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if m == nil || m.Author == nil || m.Author.Bot {
+		return
+	}
+	if m.GuildID != monitoredGuildID || m.ChannelID != monitoredChannelID {
+		return
+	}
+	if isWhitelistedMember(m.Member) {
+		return
+	}
+
+	imageURLs := extractImageURLs(m)
+	if len(imageURLs) == 0 {
+		return
+	}
+
+	for _, imageURL := range imageURLs {
+		result, err := AnalyseImageURLAIOnly(m.GuildID, imageURL)
+		if err != nil {
+			log.Printf("monitor: AI-only scan failed for %s: %v", imageURL, err)
+			continue
+		}
+		if result == nil || result.Scores.AIGenerated < api.DefaultAIGeneratedThreshold {
+			continue
+		}
+		go sendMonitoringAlert(s, m, imageURL, result.Scores.AIGenerated)
+	}
+}
+
+func isWhitelistedMember(member *discordgo.Member) bool {
+	if member == nil {
+		return false
+	}
+	for _, roleID := range member.Roles {
+		if _, ok := whitelistedRoleIDs[roleID]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func extractImageURLs(m *discordgo.MessageCreate) []string {
+	seen := make(map[string]struct{})
+	urls := make([]string, 0, 4)
+	add := func(u string) {
+		u = strings.TrimSpace(u)
+		if u == "" {
+			return
+		}
+		if _, ok := seen[u]; ok {
+			return
+		}
+		if !isImageURL(u) {
+			return
+		}
+		seen[u] = struct{}{}
+		urls = append(urls, u)
+	}
+
+	for _, attachment := range m.Attachments {
+		if attachment == nil {
+			continue
+		}
+		if attachment.ContentType != "" && strings.HasPrefix(strings.ToLower(attachment.ContentType), "image/") {
+			add(attachment.URL)
+			continue
+		}
+		add(attachment.URL)
+	}
+	for _, embed := range m.Embeds {
+		if embed == nil {
+			continue
+		}
+		if embed.Image != nil {
+			add(embed.Image.URL)
+		}
+		if embed.Thumbnail != nil {
+			add(embed.Thumbnail.URL)
+		}
+	}
+	for _, match := range imageURLPattern.FindAllString(m.Content, -1) {
+		add(match)
+	}
+	return urls
+}
+
+func isImageURL(raw string) bool {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return false
+	}
+	lower := strings.ToLower(trimmed)
+	if strings.Contains(lower, ".png") || strings.Contains(lower, ".jpg") || strings.Contains(lower, ".jpeg") || strings.Contains(lower, ".gif") || strings.Contains(lower, ".webp") || strings.Contains(lower, ".avif") || strings.Contains(lower, ".bmp") {
+		return true
+	}
+	if strings.Contains(lower, "image/") || strings.Contains(lower, "cdn.discordapp.com") || strings.Contains(lower, "media.discordapp.net") {
+		return true
+	}
+	return false
+}
+
+func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, imageURL string, score float64) {
+	if alertsChannelID == "" || alertsChannelID == "SET_ALERTS_CHANNEL_ID_HERE" {
+		log.Printf("monitor: alerts channel not configured; skipping AI alert for message %s", m.ID)
+		return
+	}
+	if s == nil || s.Token == "" {
+		return
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Title:       "AI-generated image alert",
+		Description: fmt.Sprintf("AI screening flagged media posted in <#%s>.", monitoredChannelID),
+		Color:       0xFF4D4D,
+		Image:       &discordgo.MessageEmbedImage{URL: imageURL},
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "Author", Value: fmt.Sprintf("<@%s>", m.Author.ID), Inline: true},
+			{Name: "AI Score", Value: fmt.Sprintf("%.2f / %.2f", score, api.DefaultAIGeneratedThreshold), Inline: true},
+			{Name: "Jump", Value: fmt.Sprintf("[Open message](https://discord.com/channels/%s/%s/%s)", monitoredGuildID, monitoredChannelID, m.ID), Inline: false},
+		},
+		Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL},
+	}
+
+	if _, err := s.ChannelMessageSendComplex(alertsChannelID, &discordgo.MessageSend{Embed: embed}); err != nil {
+		log.Printf("monitor: failed to send AI alert for message %s: %v", m.ID, err)
 	}
 }
 
