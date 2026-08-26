@@ -41,7 +41,7 @@ func registerHandlers(sess *discordgo.Session) {
 	// Apply Rich Presence on READY
 	sess.AddHandler(onReadySetPresence)
 
-	// Monitor the configured guild/channel for media uploads and AI alerts
+	// Monitor the configured guild/channel for media uploads and moderation alerts
 	sess.AddHandler(onMessageCreateMonitor)
 
 	// Register commands when bot joins a new guild
@@ -135,15 +135,15 @@ func onMessageCreateMonitor(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	for _, imageURL := range imageURLs {
-		result, err := AnalyseImageURLAIOnly(m.GuildID, imageURL)
+		result, err := AnalyseImageURL(m.GuildID, imageURL)
 		if err != nil {
-			log.Printf("monitor: AI-only scan failed for %s: %v", imageURL, err)
+			log.Printf("monitor: full scan failed for %s: %v", imageURL, err)
 			continue
 		}
-		if result == nil || result.Scores.AIGenerated < api.DefaultAIGeneratedThreshold {
+		if result == nil || result.Allowed {
 			continue
 		}
-		go sendMonitoringAlert(s, m, imageURL, result.Scores.AIGenerated)
+		go sendMonitoringAlert(s, m, imageURL, result)
 	}
 }
 
@@ -219,7 +219,7 @@ func isImageURL(raw string) bool {
 	return false
 }
 
-func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, imageURL string, score float64) {
+func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, imageURL string, result *api.Analysis) {
 	if alertsChannelID == "" || alertsChannelID == "SET_ALERTS_CHANNEL_ID_HERE" {
 		log.Printf("monitor: alerts channel not configured; skipping AI alert for message %s", m.ID)
 		return
@@ -229,21 +229,47 @@ func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, image
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title:       "AI Generated Image Detected",
-		Description: fmt.Sprintf("Automated AI screening flagged media posted in <#%s>.", monitoredChannelID),
+		Title:       "Image Moderation Alert",
+		Description: fmt.Sprintf("Automated moderation flagged media posted in <#%s>.", monitoredChannelID),
 		Color:       0xFF4D4D,
 		Image:       &discordgo.MessageEmbedImage{URL: imageURL},
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "Author", Value: fmt.Sprintf("<@%s>", m.Author.ID), Inline: true},
-			{Name: "AI Score", Value: fmt.Sprintf("%.2f / 1.00", score), Inline: true},
+			{Name: "AI Generated", Value: fmt.Sprintf("%.1f%%", result.Scores.AIGenerated*100), Inline: true},
+			{Name: "Nudity (Explicit)", Value: fmt.Sprintf("%.1f%%", result.Scores.NudityExplicit*100), Inline: true},
+			{Name: "Nudity (Suggestive)", Value: fmt.Sprintf("%.1f%%", result.Scores.NuditySuggestive*100), Inline: true},
+			{Name: "Offensive", Value: fmt.Sprintf("%.1f%%", result.Scores.Offensive*100), Inline: true},
+			{Name: "Triggered Checks", Value: formatTriggeredReasons(result.Reasons), Inline: false},
 			{Name: "Jump", Value: fmt.Sprintf("[Open message](https://discord.com/channels/%s/%s/%s)", monitoredGuildID, monitoredChannelID, m.ID), Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL},
 	}
 
 	if _, err := s.ChannelMessageSendComplex(alertsChannelID, &discordgo.MessageSend{Embed: embed}); err != nil {
-		log.Printf("monitor: failed to send AI alert for message %s: %v", m.ID, err)
+		log.Printf("monitor: failed to send moderation alert for message %s: %v", m.ID, err)
 	}
+}
+
+func formatTriggeredReasons(reasons []string) string {
+	if len(reasons) == 0 {
+		return "none"
+	}
+	out := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		switch reason {
+		case "nudity_explicit":
+			out = append(out, "Nudity (Explicit)")
+		case "nudity_suggestive":
+			out = append(out, "Nudity (Suggestive)")
+		case "offensive_symbols":
+			out = append(out, "Offensive")
+		case "ai_generated_high":
+			out = append(out, "AI Generated")
+		default:
+			out = append(out, reason)
+		}
+	}
+	return strings.Join(out, ", ")
 }
 
 // -------------------------
