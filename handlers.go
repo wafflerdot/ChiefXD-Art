@@ -85,7 +85,7 @@ func registerHandlers(sess *discordgo.Session) {
 			}
 		case discordgo.InteractionMessageComponent:
 			if dbLessMode {
-				_ = commands.RespondEphemeral(s, i, "This command is disabled when PERMS_DBLESS is enabled.")
+				_ = commands.RespondEphemeral(s, i, "This command is disabled when running in DB-less mode.")
 				return
 			}
 			// Handle component interactions (buttons, etc.)
