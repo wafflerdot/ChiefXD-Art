@@ -1,6 +1,6 @@
 # Terms of Service
 
-**Last Updated:** 26 August 2026
+**Last Updated:** 21 October 2026
 
 **Jurisdiction:** England and Wales
 
@@ -15,7 +15,7 @@ The Bot provides media analysis, reverse image searching, and content moderation
 * **Interactive Slash Commands:** Permitted users and administrators may execute slash commands including `/analyse`, `/ai`, `/reverse`, `/thresholds`, and `/permissions` to evaluate media and manage bot settings.
 
 
-* **Third-Party API Integration:** Media submitted through the Bot is processed via external services, including Sightengine (for nudity, offensive symbol, and AI-generation scoring) and reverse image search providers.
+* **Third-Party API Integration:** Media submitted through the Bot is processed via external services, including Sightengine (for nudity, offensive content, and the likelihood of AI generation) and reverse image search providers.
 
 
 * **Automated Screening in Chief's Crib:** In the "Chief's Crib" Discord server (`Guild ID: 800047499904679936`), all media uploaded or posted to the designated Art channel (`Channel ID: 818805988311302166`) is automatically ingested and screened for AI generation and compliance with configured server thresholds. No data is permanently stored beyond the duration necessary to perform the requested analysis, and all media is processed in accordance with applicable data protection laws.
