@@ -25,11 +25,11 @@ var whitelistedRoleIDs = map[string]struct{}{
 
 var imageURLPattern = regexp.MustCompile(`https?://[^\s)>'"]+`)
 
-// startupComplete is set to true after bot initialization is complete
+// startupComplete is set to true after bot initialisation is complete
 // This prevents onGuildCreate from running during initial guild sync
 var startupComplete atomic.Bool
 
-// StartupComplete signals that bot initialization is done
+// StartupComplete signals that bot initialisation is done
 // and onGuildCreate should start processing new guild joins
 func StartupComplete() {
 	startupComplete.Store(true)

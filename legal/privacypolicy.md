@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** 26 August 2026
+**Last Updated:** 21 October 2026
 
 **Jurisdiction:** United Kingdom
 
@@ -51,9 +51,9 @@ Under Article 6 of the UK GDPR, we rely on the following lawful bases:
 
 ---
 
-## 4. Automated Screening (Chief's Crib Discord Server only)
+## 4. Automated Screening (Limited Scope)
 
-* **Designated Channel Ingestion:** In the "Chief's Crib" Discord server (`Guild ID: 800047499904679936`), the Bot automatically inspects all media submitted to the designated Art channel (`Channel ID: 818805988311302166`).
+* **Designated Channel Ingestion:** In the "Chief's Crib" Discord server (`Guild ID: 800047499904679936`), and only in the Chief's Crib Discord server, the Bot automatically inspects all media submitted to the designated Art channel (`Channel ID: 818805988311302166`).
 
 
 * **Automated Decision-Making & Profiling:** Submitted images are programmatically scanned to assess the likelihood of AI generation and to evaluate content against guild thresholds.
@@ -65,7 +65,7 @@ Under Article 6 of the UK GDPR, we rely on the following lawful bases:
 
 ---
 
-## 5. Third-Party Sub-Processors and International Transfers
+## 5. Third-Parties and International Transfers
 
 To perform technical analysis, the Bot securely transmits image URLs to external third-party services:
 
@@ -97,20 +97,25 @@ Where data transfers occur outside the United Kingdom, we ensure appropriate saf
 
 ---
 
-## 7. Your Rights Under GDPR
+## 7. Your Rights
 
 If you are a resident of the United Kingdom, you possess enforceable statutory rights regarding your personal data:
 
 * **Right of Access:** You may request confirmation of whether we hold personal data relating to you and request a copy of that data.
+
+
 * **Right to Rectification:** You may request the correction of inaccurate personal data.
+
+
 * **Right to Erasure:** You may request the deletion of your Discord User ID and associated configuration records from our databases.
 
 
-* **Right to Object / Restrict:** You may object to the processing of your data based on legitimate interests.
 * **Right to Lodge a Complaint:** You have the right to submit a complaint regarding our data handling practices directly to the **Information Commissioner's Office (ICO)** via their official website at [ico.org.uk](https://ico.org.uk).
+
+
 
 ---
 
-## 8. Data Requests and Contact Details
+## 8. Contacting Us
 
-To exercise any of your data protection rights or request manual removal of your stored server configurations and permissions, please contact the bot operator via Discord (`wafflerdot`). Requests will be addressed without undue delay and within one calendar month in accordance with statutory requirements.
+To exercise any of your data protection rights or request manual removal of your stored server configurations and permissions, please contact the bot operator and data controller via Discord (`wafflerdot`). Requests will be addressed without undue delay and within one calendar month in accordance with statutory requirements.
