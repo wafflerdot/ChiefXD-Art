@@ -58,7 +58,7 @@ func registerHandlers(sess *discordgo.Session) {
 			if dbLessMode {
 				switch i.ApplicationCommandData().Name {
 				case "permissions", "thresholds", "whitelist":
-					_ = commands.RespondEphemeral(s, i, "This command is disabled when PERMS_DBLESS is enabled.")
+					_ = commands.RespondEphemeral(s, i, "This command is disabled when running in DB-less mode.")
 					return
 				}
 			}
