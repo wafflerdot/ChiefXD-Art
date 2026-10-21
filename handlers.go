@@ -13,14 +13,14 @@ import (
 )
 
 const (
-	monitoredGuildID   = "1246210655715856546"
-	monitoredChannelID = "1541977578234187859"
-	// 800047499904679936, 818805988311302166
-	alertsChannelID = "1541977567995887736"
+	monitoredGuildID   = "800047499904679936"
+	monitoredChannelID = "818805988311302166"
+	// 1246210655715856546, 1541977578234187859
+	alertsChannelID = "1541962886455365632"
 )
 
 var whitelistedRoleIDs = map[string]struct{}{
-	"1374151190320779284": {},
+	"823119803778727956": {},
 }
 
 var imageURLPattern = regexp.MustCompile(`https?://[^\s)>'"]+`)
