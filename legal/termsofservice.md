@@ -18,7 +18,7 @@ The Bot provides media analysis, reverse image searching, and content moderation
 * **Third-Party API Integration:** Media submitted through the Bot is processed via external services, including Sightengine (for nudity, offensive content, and the likelihood of AI generation) and reverse image search providers.
 
 
-* **Automated Screening in Chief's Crib:** In the "Chief's Crib" Discord server (`Guild ID: 800047499904679936`), all media uploaded or posted to the designated Art channel (`Channel ID: 818805988311302166`) is automatically ingested and screened for AI generation and compliance with configured server thresholds. No data is permanently stored beyond the duration necessary to perform the requested analysis, and all media is processed in accordance with applicable data protection laws.
+* **Automated Screening in Chief's Crib:** In the "Chief's Crib" Discord server (`Guild ID: 800047499904679936`), all media uploaded or posted to monitored channels is automatically ingested and screened for AI generation and compliance with configured server thresholds. No data is permanently stored beyond the duration necessary to perform the requested analysis, and all media is processed in accordance with applicable data protection laws.
 
 
 
@@ -31,7 +31,7 @@ By using the Bot or posting media in channels where the Bot operates, you acknow
 * **Data Collected:** The Bot temporarily processes media URLs, message attachment URLs, Discord User IDs, Guild IDs, Role IDs, and configured server moderation thresholds.
 
 
-* **Automated Processing & Profiling:** Images submitted to monitored channels (i.e. Channel `818805988311302166`) are subjected to automated algorithmic evaluation to determine probabilistic scores for AI generation, explicit nudity, suggestive nudity, and offensive material.
+* **Automated Processing & Profiling:** Images submitted to monitored channels are subjected to automated algorithmic evaluation to determine probabilistic scores for AI generation, explicit nudity, suggestive nudity, and offensive material.
 
 
 * **Sub-processors:** Image URLs are transmitted to Sightengine and search query endpoints to perform scoring and reverse search lookups. Data sent to sub-processors is handled according to their respective data handling and retention policies.

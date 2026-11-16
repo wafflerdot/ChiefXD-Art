@@ -13,7 +13,7 @@ This Privacy Policy explains how Waffle ("Operator", "we", "us", "our", or "waff
 * **Data Controller:** For the purposes of the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018 (DPA 2018), the data controller responsible for the operation of the Bot is Waffle (wafflerdot).
 
 
-* **Scope of Application:** This policy applies to all individuals who interact with the Bot via slash commands, as well as users posting media in Discord channels actively monitored by the Bot (notably within the Art channel of the Chief's Crib server).
+* **Scope of Application:** This policy applies to all individuals who interact with the Bot via slash commands, as well as users posting media in Discord channels actively monitored by the Bot.
 
 
 
@@ -53,7 +53,7 @@ Under Article 6 of the UK GDPR, we rely on the following lawful bases:
 
 ## 4. Automated Screening (Limited Scope)
 
-* **Designated Channel Ingestion:** In the "Chief's Crib" Discord server (`Guild ID: 800047499904679936`), and only in the Chief's Crib Discord server, the Bot automatically inspects all media submitted to the designated Art channel (`Channel ID: 818805988311302166`).
+* **Designated Channel Ingestion:** In the "Chief's Crib" Discord server (`Guild ID: 800047499904679936`), and only in the Chief's Crib Discord server, the Bot automatically inspects all media submitted to the monitored channels.
 
 
 * **Automated Decision-Making & Profiling:** Submitted images are programmatically scanned to assess the likelihood of AI generation and to evaluate content against guild thresholds.
