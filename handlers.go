@@ -15,6 +15,7 @@ import (
 const (
 	monitoredGuildID = "800047499904679936"  // Chief's Crib
 	alertsChannelID  = "1541962886455365632" // AI Alerts
+	alertRoleID      = "1571984630339342437"
 )
 
 var monitoredChannelIDs = map[string]struct{}{
@@ -255,7 +256,14 @@ func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, image
 		Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL},
 	}
 
-	if _, err := s.ChannelMessageSendComplex(alertsChannelID, &discordgo.MessageSend{Embed: embed}); err != nil {
+	alert := &discordgo.MessageSend{
+		Content: fmt.Sprintf("<@&%s>", alertRoleID),
+		Embed:   embed,
+		AllowedMentions: &discordgo.MessageAllowedMentions{
+			Roles: []string{alertRoleID},
+		},
+	}
+	if _, err := s.ChannelMessageSendComplex(alertsChannelID, alert); err != nil {
 		log.Printf("monitor: failed to send moderation alert for message %s: %v", m.ID, err)
 	}
 }
