@@ -13,16 +13,19 @@ import (
 )
 
 const (
-	monitoredGuildID = "800047499904679936"
-	alertsChannelID  = "1541962886455365632"
+	monitoredGuildID = "800047499904679936"  // Chief's Crib
+	alertsChannelID  = "1541962886455365632" // AI Alerts
 )
 
 var monitoredChannelIDs = map[string]struct{}{
-	"818805988311302166": {},
+	"818805988311302166":  {}, // Art
+	"1425802040008904715": {}, // Competitions and Events
 }
 
 var whitelistedRoleIDs = map[string]struct{}{
-	"823119803778727956": {},
+	"1166111149310345256": {}, // Staff
+	"833444809480863745":  {}, // Twitch Mods
+	"1518981951745294346": {}, // Core Artists
 }
 
 var imageURLPattern = regexp.MustCompile(`https?://[^\s)>'"]+`)
