@@ -13,11 +13,13 @@ import (
 )
 
 const (
-	monitoredGuildID   = "800047499904679936"
-	monitoredChannelID = "818805988311302166"
-	// 1246210655715856546, 1541977578234187859
-	alertsChannelID = "1541962886455365632"
+	monitoredGuildID = "800047499904679936"
+	alertsChannelID  = "1541962886455365632"
 )
+
+var monitoredChannelIDs = map[string]struct{}{
+	"818805988311302166": {},
+}
 
 var whitelistedRoleIDs = map[string]struct{}{
 	"823119803778727956": {},
@@ -122,7 +124,7 @@ func onMessageCreateMonitor(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m == nil || m.Author == nil || m.Author.Bot {
 		return
 	}
-	if m.GuildID != monitoredGuildID || m.ChannelID != monitoredChannelID {
+	if m.GuildID != monitoredGuildID || !isMonitoredChannel(m.ChannelID) {
 		return
 	}
 	if isWhitelistedMember(m.Member) {
@@ -145,6 +147,11 @@ func onMessageCreateMonitor(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		go sendMonitoringAlert(s, m, imageURL, result)
 	}
+}
+
+func isMonitoredChannel(channelID string) bool {
+	_, ok := monitoredChannelIDs[channelID]
+	return ok
 }
 
 func isWhitelistedMember(member *discordgo.Member) bool {
@@ -230,7 +237,7 @@ func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, image
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "Image Moderation Alert",
-		Description: fmt.Sprintf("Automated moderation flagged media posted in <#%s>.", monitoredChannelID),
+		Description: fmt.Sprintf("Automated moderation flagged media posted in <#%s>.", m.ChannelID),
 		Color:       0xFF4D4D,
 		Image:       &discordgo.MessageEmbedImage{URL: imageURL},
 		Fields: []*discordgo.MessageEmbedField{
@@ -240,7 +247,7 @@ func sendMonitoringAlert(s *discordgo.Session, m *discordgo.MessageCreate, image
 			{Name: "Nudity (Suggestive)", Value: fmt.Sprintf("%.0f%%", result.Scores.NuditySuggestive*100), Inline: true},
 			{Name: "Offensive", Value: fmt.Sprintf("%.0f%%", result.Scores.Offensive*100), Inline: true},
 			{Name: "Triggered Checks", Value: formatTriggeredReasons(result.Reasons), Inline: false},
-			{Name: "Jump", Value: fmt.Sprintf("[Open message](https://discord.com/channels/%s/%s/%s)", monitoredGuildID, monitoredChannelID, m.ID), Inline: false},
+			{Name: "Jump", Value: fmt.Sprintf("[Open message](https://discord.com/channels/%s/%s/%s)", monitoredGuildID, m.ChannelID, m.ID), Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{Text: FooterText, IconURL: FooterIconURL},
 	}
